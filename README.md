@@ -9,7 +9,7 @@ output:
 
 
 
-## $S^3$: Scalable Spike-and-Slab
+## Scalable Spike-and-Slab (S^3)
 
 This package contains scripts to reproduce the results of article 
 "Scalable Spike-and-Slab", by Niloy Biswas, Xiao-Li Meng, and Lester Mackey.
@@ -47,7 +47,7 @@ y <- riboflavin$y
 # Choose hyperparamters
 params <- spike_slab_params(n=nrow(X),p=ncol(X))
 ```
-#### Run MCMC with $S^3$ 
+#### Run MCMC with S^3
 
 
 ```r
