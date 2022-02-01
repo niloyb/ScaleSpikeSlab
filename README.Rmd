@@ -7,7 +7,9 @@ output:
     keep_md: yes
 ---
 
-
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
 ## $S^3$: Scalable Spike-and-Slab
 
@@ -18,8 +20,7 @@ This package contains scripts to reproduce the results of article
 
 The package can be installed from R via:
 
-
-```r
+```{r install, eval=FALSE}
 # install.packages("devtools")
 devtools::install_github("niloyb/ScaleSpikeSlab")
 
@@ -33,8 +34,7 @@ install.packages(c("doParallel", "doRNG", "foreach", "dplyr", "tidyr",
 ### A tutorial with Genome-Wide association studies (GWAS) dataset
 
 #### Import data and select hyperparameters. 
-
-```r
+```{r generate_data_set_params, tidy = T, cache = TRUE, warning=FALSE, message=FALSE, fig.width=7}
 set.seed(1)
 library(ScaleSpikeSlab)
 
@@ -49,8 +49,7 @@ params <- spike_slab_params(n=nrow(X),p=ncol(X))
 ```
 #### Run MCMC with $S^3$ 
 
-
-```r
+```{r run_sss, tidy = T, cache = TRUE, warning=FALSE, message=FALSE, fig.width=7}
 # sss_chain <- spike_slab_mcmc(chain_length=2e3,burnin=5e2,X=X,Xt=Xt,y=y,
 #                              tau0=params$tau0,tau1=params$tau1,q=params$q, 
 #                              verbose=TRUE)
@@ -67,11 +66,11 @@ sss_chain_z_output <-
                                verbose=TRUE,store=FALSE)
   return(as.vector(sss_chain$z_ergodic_avg))
 }
+
 ```
 #### Plot Spike-and-Slab marginal posterior probabilities for variable selection 
 
-
-```r
+```{r plot_sss, tidy = T, cache = TRUE, warning=FALSE, message=FALSE, fig.width=7}
 library(dplyr)
 library(ggplot2)
 library(latex2exp)
@@ -92,6 +91,5 @@ ggplot(riboflavin_df, aes(x=xaxis, y=post_prob_mean)) +
   xlab('Riboflavin Covariates') + 
   ylab(TeX('Marginal posterior probabilities')) +
   scale_x_continuous(trans='log10') + theme_classic(base_size = 12)
-```
 
-![](README_files/figure-html/plot_sss-1.png)<!-- -->
+```
