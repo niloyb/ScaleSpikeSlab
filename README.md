@@ -51,10 +51,6 @@ params <- spike_slab_params(n=nrow(X),p=ncol(X))
 
 
 ```r
-# sss_chain <- spike_slab_mcmc(chain_length=2e3,burnin=5e2,X=X,Xt=Xt,y=y,
-#                              tau0=params$tau0,tau1=params$tau1,q=params$q, 
-#                              verbose=TRUE)
-
 library(doParallel)
 registerDoParallel(cores = detectCores()-1)
 library(foreach)
