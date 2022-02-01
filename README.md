@@ -12,7 +12,7 @@ output:
 ## Scalable Spike-and-Slab (S^3)
 
 This package contains scripts to reproduce the results of article 
-"Scalable Spike-and-Slab", by Niloy Biswas, Xiao-Li Meng, and Lester Mackey.
+"Scalable Spike-and-Slab", by Niloy Biswas, Xiao-Li Meng and Lester Mackey.
 
 ### Installation
 
