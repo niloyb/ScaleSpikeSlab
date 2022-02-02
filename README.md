@@ -9,12 +9,17 @@ output:
 
 
 
-## Scalable Spike-and-Slab (S^3)
+# Scalable Spike-and-Slab (S^3)
 
-This package contains scripts to reproduce the results of article 
-"Scalable Spike-and-Slab", by Niloy Biswas, Lester Mackey and Xiao-Li Meng.
+This package contains algorithms for *Scalable Spike-and-Slab* (S^3),
+a scalable Gibbs sampling implementation for high-dimensional Bayesian 
+regression with the continuous spike-and-slab prior.
 
-### Installation
+It is based on the article "Scalable Spike-and-Slab", 
+by Niloy Biswas, Lester Mackey and Xiao-Li Meng. The folder `inst` contains 
+scripts to reproduce the results of the article.
+
+## Installation
 
 The package can be installed from R via:
 
@@ -30,7 +35,7 @@ install.packages(c("doParallel", "doRNG", "foreach", "dplyr", "tidyr",
                    "ggplot2", "latex2exp", "reshape2", "ggpubr"))
 ```
 
-### A tutorial with Genome-Wide association studies (GWAS) dataset
+## A tutorial with GWAS data
 
 #### Import data and select hyperparameters. 
 
@@ -59,7 +64,7 @@ no_chains <- 20
 sss_chain_z_output <- 
   foreach(i = c(1:no_chains), .combine=rbind)%dopar%{
   sss_chain <- spike_slab_mcmc(chain_length=5e3,burnin=1e3,X=X,Xt=Xt,y=y,
-                               tau0=params$tau0,tau1=1,q=params$q,
+                               tau0=params$tau0,tau1=params$tau1,q=params$q,
                                verbose=TRUE,store=FALSE)
   return(as.vector(sss_chain$z_ergodic_avg))
 }
