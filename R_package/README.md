@@ -26,7 +26,7 @@ The package can be installed from R via:
 
 ```r
 # install.packages("devtools")
-devtools::install_github("niloyb/ScaleSpikeSlab")
+devtools::install_github("niloyb/ScaleSpikeSlab/R_package/")
 
 # Install dependencies Rcpp, RcppEigen
 install.packages(c("Rcpp", "RcppEigen"))
