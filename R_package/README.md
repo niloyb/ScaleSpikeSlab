@@ -9,7 +9,7 @@ output:
 
 
 
-# Scalable Spike-and-Slab (S^3)
+# ScaleSpikeSlab (S^3)
 
 This package contains algorithms for *Scalable Spike-and-Slab* (S^3),
 a scalable Gibbs sampling implementation for high-dimensional Bayesian 
