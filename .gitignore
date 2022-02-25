@@ -2,4 +2,4 @@
 .Rhistory
 *.RData
 .Ruserdata
-!riboflavin.RData
+!R_package/data/
