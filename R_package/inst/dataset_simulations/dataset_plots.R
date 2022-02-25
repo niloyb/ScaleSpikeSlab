@@ -57,7 +57,6 @@ variable_section_comparison <-
 variable_section_comparison
 
 # Combined plot
-
 plot_combined <- 
   ggarrange(variable_section_comparison, 
             time_comparison, common.legend = TRUE, legend.grob =  shared_legend, legend = "bottom", nrow=1)

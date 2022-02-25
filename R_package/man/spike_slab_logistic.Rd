@@ -7,17 +7,18 @@
 spike_slab_logistic(
   chain_length,
   X,
-  Xt,
   y,
   tau0,
   tau1,
   q,
-  a0 = 1,
-  b0 = 1,
   rinit = NULL,
   verbose = FALSE,
   burnin = 0,
-  store = TRUE
+  store = TRUE,
+  Xt = NULL,
+  XXt = NULL,
+  tau0_inverse = NULL,
+  tau1_inverse = NULL
 )
 }
 \arguments{
@@ -32,10 +33,6 @@ spike_slab_logistic(
 \item{tau1}{prior hyperparameter (non-negative real)}
 
 \item{q}{prior hyperparameter (strictly between 0 and 1)}
-
-\item{a0}{prior hyperparameter (non-negative real)}
-
-\item{b0}{prior hyperparameter (non-negative real)}
 
 \item{X_transpose}{Pre-calculated transpose of X}
 }

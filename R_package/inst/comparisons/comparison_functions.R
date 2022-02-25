@@ -1,177 +1,83 @@
 # Functions for comparison with alternatives
-require(Rcpp)
-require(RcppEigen)
-# Rcpp functions
-Rcpp::cppFunction('
-Eigen::MatrixXd cpp_mat_vec_prod(const Eigen::MatrixXd X, const Eigen::VectorXd y){
-Eigen::VectorXd output;
-output = X*y;
-return output;
-}', depends = 'RcppEigen')
-# Rcpp::cppFunction('
-# Eigen::MatrixXd cpp_vec_mat_prod(const Eigen::VectorXd y, const Eigen::MatrixXd X){
-# Eigen::VectorXd output;
-# output = y.adjoint()*X;
-# return output;
-# }', depends = 'RcppEigen')
-Rcpp::cppFunction('
-Eigen::MatrixXd cpp_prod(const Eigen::MatrixXd X, const Eigen::MatrixXd Y){
-  return Eigen::MatrixXd(X*Y);
-}', depends = 'RcppEigen')
-Rcpp::cppFunction('
-Eigen::MatrixXd fcprd(const Eigen::MatrixXd X){
-const int n = X.cols();
-  return Eigen::MatrixXd(n, n).setZero().selfadjointView<Eigen::Lower>().rankUpdate(X.adjoint());
-}', depends = 'RcppEigen')
+library(ScaleSpikeSlab)
+library(doParallel)
+registerDoParallel(cores = detectCores()-1)
+library(foreach)
 
-
-## Matrix calculation helper functions ##
-matrix_full <- function(Xt, d){
-  n <- dim(Xt)[2]
-  # NOTE: (1) For MacOS with veclib BLAS, crossprod is fast via multit-hreading
-  # return(crossprod(Xt*c(1/d)^0.5) + diag(n))
-  return(fcprd(Xt*c(1/d)^0.5) + diag(n))
-}
-matrix_precompute <- function(Xt, d, prev_d, prev_matrix){
-  if(sum(d!=prev_d)==0){return(prev_matrix)}
-  
-  pos_indices <- (1/d-1/prev_d)>0
-  if(sum(pos_indices)==0){
-    pos_part <- 0
-  } else{
-    pos_d_update <- (1/d-1/prev_d)[pos_indices]
-    pos_Xt_update <- Xt[pos_indices,,drop=FALSE]
-    pos_Xt_d_update <- pos_Xt_update*(pos_d_update^0.5)
-    pos_part <- fcprd(pos_Xt_d_update)
-  }
-  
-  neg_indices <- (1/d-1/prev_d)<0
-  if(sum(neg_indices)==0){
-    neg_part <- 0
-  } else{
-    neg_d_update <- -(1/d-1/prev_d)[neg_indices]
-    neg_Xt_update <- Xt[neg_indices,,drop=FALSE]
-    neg_Xt_d_update <- neg_Xt_update*(neg_d_update^0.5)
-    neg_part <- fcprd(neg_Xt_d_update)
-  }
-  return(pos_part-neg_part+prev_matrix)
-}
-inverse_precompute <- function(Xt, d, prev_d, prev_inverse){
-  swap_indices <- (d!=prev_d)
-  no_swaps <- sum(swap_indices)
-  if(no_swaps==0){return(prev_inverse)}
-  
-  diag_diff <- (1/d-1/prev_d)[swap_indices]
-  Xt_update <- Xt[swap_indices,,drop=FALSE]
-  Xt_update_prev_inverse <- cpp_prod(Xt_update,prev_inverse)
-  M_matrix <- diag(1/diag_diff, no_swaps)+cpp_prod(Xt_update_prev_inverse,t(Xt_update))
-  # Use (M_matrix+t(M_matrix))/2 to avoid numerical error, as M_matrix symmetric
-  M_matrix_inverse <- solve((M_matrix+t(M_matrix))/2)
-  inverse_update <- cpp_prod(t(Xt_update_prev_inverse),
-                             cpp_prod(M_matrix_inverse,Xt_update_prev_inverse))
-  return(prev_inverse-inverse_update)
+############################ Skinny Gibbs functions ############################
+# # Installing Skinny Gibbs
+# install.packages("/Users/niloybiswas/Downloads/UASA_A_1482754_Supplement/Skinny Gibbs/skinnybasad_0.0.1.tar.gz", repos = NULL, type ="source")
+library(skinnybasad)
+# Editing the skinnybasad:::skinnybasad function for implementation
+# Added the line: PACKAGE = "skinnybasad"
+skinnybasad <- function(X, E, pr, B0, Z0, nsplit, modif, nburn = 1000, niter = 5000, 
+                        printitrsep = 0, maxsize = 1000, a0 = 1, b0 = 1){
+  n = as.integer(dim(X)[1])
+  p = as.integer(dim(X)[2])
+  printitr = 0
+  if (printitrsep != 0) 
+    printitr = 1
+  if (!is.vector(B0)) 
+    B0 = rep(0, p)
+  if (!is.vector(Z0)) 
+    Z0 = rep(0, p)
+  del = 0.1
+  s1 = max(a0 * p^{
+    2 + del
+  }/n, 1)
+  s0 = b0/n
+  res = .C("skinnybasad", as.double(as.vector(X)), as.double(as.vector(E)), 
+           as.double(as.vector(B0)), as.double(as.vector(Z0)), as.double(pr), 
+           n, p, as.double(s1), as.double(s0), as.integer(nburn), 
+           as.integer(niter), as.integer(nsplit), as.integer(modif), 
+           as.integer(printitr), as.integer(printitrsep), as.integer(maxsize), 
+           outmarZ = double(p), outsize = integer(niter + nburn),
+           PACKAGE = "skinnybasad")
+  return(list(marZ = res$outmarZ, allsize = res$outsize[nburn:(nburn + niter)]))
 }
 
-## Spike slab linear regression functions ##
-# beta update
-# beta update
-update_beta_comparison <- 
-  function(z, sigma2, X, Xt, y, prev_z, prev_matrix, 
-           prev_inverse, tau0, tau1, algo, u=NULL, delta=NULL){
-  p <- length(z)
-  n <- length(y)
-  no_swaps <- sum(z!=prev_z)
-  
-  d <- as.vector(z/(tau1^2)+(1-z)/(tau0^2))
-  prev_d <- as.vector(prev_z/(tau1^2)+(1-prev_z)/(tau0^2))
-  
-  if(is.null(u)){u <- rnorm(p, 0, 1)}
-  u = u/(d^0.5)
-  if(is.null(delta)){delta <- c(rnorm(n,0,1))}
-  # v = cpp_mat_vec_prod(X,u) + delta
-  v = X%*%u + delta
-  
-  if(algo=='ScalableSpikeSlab'){
-    M_matrix <- matrix_precompute(Xt, d, prev_d, prev_matrix)
+################################ SOTA functions ################################
+update_beta_sota <- 
+  function(z, sigma2, X, Xt, y, tau0, tau1, u=NULL, delta=NULL){
+    p <- length(z)
+    n <- length(y)
+    d <- as.vector(z/(tau1^2)+(1-z)/(tau0^2))
     
-    if(no_swaps<n){
-      M_matrix_inverse <- inverse_precompute(Xt, d, prev_d, prev_inverse)
-      weighted_cprd <- NA
-    } else {
-      M_matrix_inverse <- chol2inv(chol(M_matrix))
-    }
-  } else if(algo=='Sota'){
-    M_matrix <- matrix_full(Xt, d)
+    if(is.null(u)){u <- rnorm(p, 0, 1)}
+    u = u/(d^0.5)
+    if(is.null(delta)){delta <- c(rnorm(n,0,1))}
+    # v = cpp_mat_vec_prod(X,u) + delta
+    v = X%*%u + delta
+    
+    M_matrix <- ScaleSpikeSlab:::matrix_full(Xt, d)
     M_matrix_inverse <- chol2inv(chol(M_matrix))
-  } else{
-    stop("algo parameter must be ScalableSpikeSlab or Sota")
+    
+    # v_star <- cpp_mat_vec_prod(M_matrix_inverse,(y/sqrt(sigma2) - v))
+    # beta <- sqrt(sigma2)*(u + (d^(-1))*cpp_mat_vec_prod(Xt,v_star))
+    v_star <- M_matrix_inverse%*%(y/sqrt(sigma2) - v)
+    beta <- sqrt(sigma2)*(u + (d^(-1))*(Xt%*%v_star))
+    return(list('beta'=beta, 'matrix'=M_matrix, 
+                'matrix_inverse'=M_matrix_inverse))
   }
-  
-  # v_star <- cpp_mat_vec_prod(M_matrix_inverse,(y/sqrt(sigma2) - v))
-  # beta <- sqrt(sigma2)*(u + (d^(-1))*cpp_mat_vec_prod(Xt,v_star))
-  v_star <- M_matrix_inverse%*%(y/sqrt(sigma2) - v)
-  beta <- sqrt(sigma2)*(u + (d^(-1))*(Xt%*%v_star))
-  return(list('beta'=beta, 'matrix'=M_matrix, 
-              'matrix_inverse'=M_matrix_inverse))
-}
-# z update
-update_z <- function(beta, sigma2, tau0, tau1, q, u_crn=NULL){
-  p <- length(beta)
-  if(is.null(u_crn)){u_crn <- runif(p)}
-  log_prob1 <- log(q)+dnorm(beta, sd=(tau1*sqrt(sigma2)),log = TRUE)
-  log_prob2 <- log(1-q)+dnorm(beta, sd=(tau0*sqrt(sigma2)),log = TRUE)
-  probs <- 1/(1+exp(log_prob2-log_prob1))
-  z <- ifelse(u_crn<probs,1,0)
-  return(z)
-}
-# sigma2 update
-update_sigma2 <- function(beta, z, tau0, tau1, a0, b0, X, y, u_crn=NULL){
-  if(is.null(u_crn)){u_crn <- runif(1)}
-  n <- length(y)
-  p <- length(beta)
-  # rss <- sum((y-cpp_mat_vec_prod(X,beta))^2)
-  rss <- sum((y-X%*%beta)^2)
-  d <- as.vector(z/(tau1^2)+(1-z)/(tau0^2))
-  beta2_d <- sum((beta)^2*d)
-  sigma2 <- 1/qgamma(u_crn,shape = (a0+n+p)/2, rate = (b0+rss+beta2_d)/2)
-  return(sigma2)
-}
 
-spike_slab_linear_kernel <- 
-  function(beta, z, sigma2, X, Xt, y, prev_z, prev_matrix, prev_inverse,
-           tau0, tau1, q, a0, b0, algo, random_samples){
+sota_spike_slab_linear_kernel <- 
+  function(beta, z, sigma2, X, Xt, y, tau0, tau1, q, a0, b0, random_samples){
     beta_output <- 
-      update_beta_comparison(z, sigma2, X, Xt, y, prev_z, prev_matrix, prev_inverse,
-                  tau0, tau1, algo, u=random_samples$beta_u, delta=random_samples$beta_delta)
-    mat <- beta_output$matrix
-    mat_inverse <- beta_output$matrix_inverse
+      update_beta_sota(z, sigma2, X, Xt, y, tau0, tau1, 
+                       u=random_samples$beta_u, delta=random_samples$beta_delta)
     beta_new <- beta_output$beta
-    z_new <- update_z(beta_new, sigma2, tau0, tau1, q, u_crn=random_samples$z_u)
-    sigma2_new <- update_sigma2(beta_new, z_new, tau0, tau1, a0, b0, X, y, u_crn=random_samples$sigma2_u)
-    return(list('beta'=beta_new,'z'=z_new,'sigma2'=sigma2_new,
-                'prev_z'=z, 'prev_matrix'=mat, 'prev_inverse'=mat_inverse))
+    z_new <- ScaleSpikeSlab:::update_z(beta_new, sigma2, tau0, tau1, q, u_crn=random_samples$z_u)
+    sigma2_new <- ScaleSpikeSlab:::update_sigma2(beta_new, z_new, tau0, tau1, a0, b0, X, y, u_crn=random_samples$sigma2_u)
+    return(list('beta'=beta_new,'z'=z_new,'sigma2'=sigma2_new))
   }
 
-#' comparison_spike_slab_linear
-#' @description Generates Markov chain targeting the posterior corresponding to
-#' Bayesian linear regression with spike and slab priors
-#' @param chain_length Markov chain length
-#' @param X matrix of length n by p
-#' @param X_transpose Pre-calculated transpose of X
-#' @param y Response
-#' @param tau0 prior hyperparameter (non-negative real)
-#' @param tau1 prior hyperparameter (non-negative real)
-#' @param q prior hyperparameter (strictly between 0 and 1)
-#' @param a0 prior hyperparameter (non-negative real)
-#' @param b0 prior hyperparameter (non-negative real)
-#' @return Output from Markov chain targeting the posterior corresponding to
-#' Bayesian linear regression with spike and slab priors
-#' @export
-comparison_spike_slab_linear <- 
-  function(chain_length,X,Xt,y,tau0,tau1,q,a0=1,b0=1,algo,rinit=NULL,
-           verbose=FALSE,burnin=0,store=TRUE){
+sota_spike_slab_linear <- 
+  function(chain_length,X,y,tau0,tau1,q,a0=1,b0=1,rinit=NULL,
+           verbose=FALSE,burnin=0,store=TRUE,Xt=NULL){
     p <- dim(X)[2]
     n <- length(y)
+    if(is.null(Xt)){Xt <- t(X)}
+    
     if(is.null(rinit)){
       # Initializing from the prior
       z <- rbinom(p,1,q)
@@ -179,11 +85,6 @@ comparison_spike_slab_linear <-
       beta <- rnorm(p)
       beta[z==0] <- beta[z==0]*(tau0*sqrt(sigma2))
       beta[z==1] <- beta[z==1]*(tau1*sqrt(sigma2))
-      
-      prev_z <- z
-      prev_d <- as.vector(prev_z/(tau1^2)+(1-prev_z)/(tau0^2))
-      prev_matrix <- matrix_full(Xt, prev_d)
-      prev_inverse <- chol2inv(chol(prev_matrix))
     }
     
     if(store){
@@ -200,15 +101,11 @@ comparison_spike_slab_linear <-
       random_samples <- 
         list(beta_u=rnorm(p, 0, 1), beta_delta=rnorm(n,0,1), z_u=runif(p), sigma2_u=runif(1))
       new_state <- 
-        spike_slab_linear_kernel(beta, z, sigma2, X, Xt, y, 
-                                 prev_z, prev_matrix, prev_inverse,
-                                 tau0, tau1, q, a0, b0, algo, random_samples)
+        sota_spike_slab_linear(beta, z, sigma2, X, Xt, y, 
+                               tau0, tau1, q, a0, b0, random_samples)
       beta <- new_state$beta
       z <- new_state$z
       sigma2 <- new_state$sigma2
-      prev_z <- new_state$prev_z
-      prev_matrix <- new_state$prev_matrix
-      prev_inverse <- new_state$prev_inverse
       
       if(t>burnin){
         if(store){
@@ -233,76 +130,43 @@ comparison_spike_slab_linear <-
     }
   }
 
-
-
-## Spike slab logistic regression functions ##
-update_e <- function(beta, sigma2, y, X, u_crn=NULL){
-  n <- length(y)
-  if(is.null(u_crn)){u_crn <- runif(n)}
-  # means <- cpp_mat_vec_prod(X, beta)
-  means <- X%*%beta
-  sds <- sqrt(sigma2)
-  ubs <- rep(Inf,n)
-  lbs <- rep(-Inf,n)
-  lbs[y==1] <- 0
-  ubs[y!=1] <- 0
-  e <- TruncatedNormal::qtnorm(u_crn, mu=means, sd=sds, lb=lbs, ub=ubs)
-  return(e)
-}
-spike_slab_logistic_kernel <- 
-  function(beta, z, e, sigma2, X, Xt, y, prev_z, prev_matrix, prev_inverse,
-           tau0, tau1, q, a0, b0, algo, random_samples){
+sota_spike_slab_logistic_kernel <- 
+  function(beta, z, e, sigma2, X, Xt, y, tau0, tau1, q, random_samples){
     beta_output <- 
-      update_beta_comparison(z, sigma2, X, Xt, e, prev_z, prev_matrix, prev_inverse,
-                  tau0, tau1, algo, u=random_samples$beta_u, delta=random_samples$beta_delta)
+      update_beta_sota(z, sigma2, X, Xt, e, tau0, tau1, u=random_samples$beta_u, delta=random_samples$beta_delta)
     mat <- beta_output$matrix
     mat_inverse <- beta_output$matrix_inverse
     beta_new <- beta_output$beta
-    z_new <- update_z(beta_new, sigma2, tau0, tau1, q, u_crn=random_samples$z_u)
-    e_new <- update_e(beta_new, sigma2, y, X, u_crn=random_samples$e_u)
+    z_new <- ScaleSpikeSlab:::update_z(beta_new, sigma2, tau0, tau1, q, u_crn=random_samples$z_u)
+    e_new <- ScaleSpikeSlab:::update_e(beta_new, sigma2, y, X, u_crn=random_samples$e_u)
     nu <- 7.3
     w2 <- (pi^2)*(nu-2)/(3*nu)
     a0 <- nu
     b0 <- w2*nu
-    sigma2_new <- update_sigma2(beta_new, z_new, tau0, tau1, a0, b0, X, e_new, u_crn=random_samples$sigma2_u)
-    return(list('beta'=beta_new,'z'=z_new,'e'=e_new,'sigma2'=sigma2_new,
-                'prev_z'=z, 'prev_matrix'=mat, 'prev_inverse'=mat_inverse))
+    sigma2_new <- ScaleSpikeSlab:::update_sigma2(beta_new, z_new, tau0, tau1, a0, b0, X, e_new, u_crn=random_samples$sigma2_u)
+    return(list('beta'=beta_new,'z'=z_new,'e'=e_new,'sigma2'=sigma2_new))
   }
 
-#' comparison_spike_slab_logistic
-#' @description Generates Markov chain targeting the posterior corresponding to
-#' Bayesian logistic regression with spike and slab priors
-#' @param chain_length Markov chain length
-#' @param X matrix of length n by p
-#' @param X_transpose Pre-calculated transpose of X
-#' @param y Response
-#' @param tau0 prior hyperparameter (non-negative real)
-#' @param tau1 prior hyperparameter (non-negative real)
-#' @param q prior hyperparameter (strictly between 0 and 1)
-#' @param a0 prior hyperparameter (non-negative real)
-#' @param b0 prior hyperparameter (non-negative real)
-#' @return Output from Markov chain targeting the posterior corresponding to
-#' Bayesian logistic regression with spike and slab priors
-#' @export
-comparison_spike_slab_logistic <- 
-  function(chain_length,X,Xt,y,tau0,tau1,q,a0=1,b0=1,algo, rinit=NULL,verbose=FALSE,
-           burnin=0,store=TRUE){
+sota_spike_slab_logistic <- 
+  function(chain_length,X,y,tau0,tau1,q, rinit=NULL,verbose=FALSE,
+           burnin=0,store=TRUE,Xt=NULL){
     p <- dim(X)[2]
     n <- length(y)
+    if(is.null(Xt)){Xt <- t(X)}
+    
     if(is.null(rinit)){
       # Initializing from the prior
       z <- rbinom(p,1,q)
+      nu <- 7.3
+      w2 <- (pi^2)*(nu-2)/(3*nu)
+      a0 <- nu
+      b0 <- w2*nu
       sigma2 <- 1/rgamma(1,shape = (a0/2), rate = (b0/2))
       beta <- rnorm(p)
       beta[z==0] <- beta[z==0]*(tau0*sqrt(sigma2))
       beta[z==1] <- beta[z==1]*(tau1*sqrt(sigma2))
       # e <- cpp_mat_vec_prod(X, beta) + sqrt(sigma2)*rnorm(n, mean = 0, sd = 1)
       e <- X%*%beta + sqrt(sigma2)*rnorm(n, mean = 0, sd = 1)
-      
-      prev_z <- z
-      prev_d <- as.vector(prev_z/(tau1^2)+(1-prev_z)/(tau0^2))
-      prev_matrix <- matrix_full(Xt, prev_d)
-      prev_inverse <- chol2inv(chol(prev_matrix))
     }
     
     beta_samples <- matrix(NA, nrow = chain_length, ncol = p)
@@ -326,16 +190,13 @@ comparison_spike_slab_logistic <-
       random_samples <- 
         list(beta_u=rnorm(p, 0, 1), beta_delta=rnorm(n,0,1), e_u=runif(n), z_u=runif(p), sigma2_u=runif(1))
       new_state <- 
-        spike_slab_logistic_kernel(beta, z, e, sigma2, X, Xt, y, 
-                                   prev_z, prev_matrix, prev_inverse,
-                                   tau0, tau1, q, a0, b0, algo, random_samples)
+        sota_spike_slab_logistic_kernel(beta, z, e, sigma2, X, Xt, y, 
+                                        tau0, tau1, q, random_samples)
+      
       beta <- new_state$beta
       z <- new_state$z
       e <- new_state$e
       sigma2 <- new_state$sigma2
-      prev_z <- new_state$prev_z
-      prev_matrix <- new_state$prev_matrix
-      prev_inverse <- new_state$prev_inverse
       
       if(t>burnin){
         if(store){
@@ -363,39 +224,137 @@ comparison_spike_slab_logistic <-
     }
   }
 
-#' comparison_spike_slab_mcmc
-#' @description Generates Markov chain targeting the posterior corresponding to
-#' Bayesian linear or logistic regression with spike and slab priors
-#' @param chain_length Markov chain length
-#' @param X matrix of length n by p
-#' @param X_transpose Pre-calculated transpose of X
-#' @param y Response
-#' @param tau0 prior hyperparameter (non-negative real)
-#' @param tau1 prior hyperparameter (non-negative real)
-#' @param q prior hyperparameter (strictly between 0 and 1)
-#' @param a0 prior hyperparameter (non-negative real)
-#' @param b0 prior hyperparameter (non-negative real)
-#' @return Output from Markov chain targeting the posterior corresponding to
-#' Bayesian linear or logistic regression with spike and slab priors
-#' @export
-comparison_spike_slab_mcmc <- 
-  function(chain_length,X,Xt,y,tau0,tau1,q,a0=1,b0=1,algo='ScalableSpikeSlab',
-           type=NULL,rinit=NULL,verbose=FALSE,burnin=0,store=TRUE){
+sota_spike_slab_mcmc <- 
+  function(chain_length,X,y,tau0,tau1,q,a0=1,b0=1,
+           type=NULL,rinit=NULL,verbose=FALSE,burnin=0,store=TRUE,Xt=NULL){
+    if(is.null(Xt)){Xt <- t(X)}
+    
     # Binary 0,1 labels for logistic regression
-    if(all(y*(1-y)==0)){
-      return(comparison_spike_slab_logistic(chain_length,X,Xt,y,tau0,tau1,q,a0,b0,algo,rinit,verbose,burnin,store))
+    if(all(y*(1-y)==0)){ 
+      return(sota_spike_slab_logistic(chain_length,X,y,tau0,tau1,q,rinit,verbose,burnin,store,Xt))
     } else {
-      return(comparison_spike_slab_linear(chain_length,X,Xt,y,tau0,tau1,q,a0,b0,algo,rinit,verbose,burnin,store))
+      return(sota_spike_slab_linear(chain_length,X,y,tau0,tau1,q,a0,b0,rinit,verbose,burnin,store,Xt))
     }
   }
 
 
 
-
-
-
-
-
-
+#################### SOTA, Skinny Gibbs and S^3 comparison ####################
+comparison_sims <- function(n_p_error_s0_list,chain_length=1e4,burnin=5e3,no_repeats=1,
+                            algos=c('ScalableSpikeSlab', 'Sota', 'SkinnyGibbs'), 
+                            signal='constant', store=TRUE){
+  foreach(n_p_error_s0 = n_p_error_s0_list, .combine = rbind)%:%
+    foreach(i = c(1:no_repeats), .combine = rbind)%dopar%{
+      n <- n_p_error_s0$n
+      p <- n_p_error_s0$p
+      error_std <- n_p_error_s0$error_std
+      s0 <- n_p_error_s0$s0
+      
+      logreg_sync_data <- synthetic_data(n, p, s0, type = 'logistic', signal=signal)
+      X <- logreg_sync_data$X
+      X <- matrix(scale(X), n, p)
+      y <- logreg_sync_data$y
+      Xt <- t(X)
+      signal_indices <- logreg_sync_data$true_beta!=0
+      
+      params <- spike_slab_params(n, p)
+      
+      output <- data.frame()
+      
+      if('ScalableSpikeSlab' %in% algos){
+        ###### Scalable spike and slab
+        sss_time_taken <-
+          system.time(
+            sss_chain <- 
+              spike_slab_mcmc(chain_length=chain_length, X=X,Xt=Xt,y=y,
+                                         tau0=params$tau0, tau1=params$tau1, q=params$q, 
+                                         a0=params$a0,b0=params$b0, rinit=NULL, verbose=TRUE,
+                                         store=store))
+        if(store){
+          delta <- rowSums(sss_chain$z[c(1:(chain_length-1)),]!=sss_chain$z[c(2:chain_length),])
+          no_active <- rowSums(sss_chain$z[c(1:chain_length),])
+          
+          sss_tpr <- mean(colMeans(sss_chain$z[c(burnin:chain_length),signal_indices,drop=FALSE])>0.5)
+          sss_fdr <- mean(colMeans(sss_chain$z[c(burnin:chain_length),!signal_indices,drop=FALSE])>0.5)
+          sss_mse <- mean((colMeans(sss_chain$beta[c(burnin:chain_length),])-logreg_sync_data$true_beta)^2)
+          
+          output <- 
+            rbind(output, 
+                  data.frame(algo='ScalableSpikeSlab', time=as.double(sss_time_taken[1])/chain_length, 
+                             tpr=sss_tpr, fdr=sss_fdr, mse=sss_mse, delta_mean=mean(delta), delta_var=var(delta),
+                             no_active_mean=mean(delta), no_active_var=var(delta), n=n, p=p, s0, iteration=i))
+        } else{
+          output <- 
+            rbind(output, data.frame(algo='ScalableSpikeSlab', 
+                                     time=as.double(sss_time_taken[1])/chain_length, n=n, p=p, s0, iteration=i))
+        }
+      }
+      
+      if('Sota' %in% algos){
+        sota_time_taken <-
+          system.time(
+            sota_chain <- 
+              sota_spike_slab_mcmc(chain_length=chain_length, X=X,Xt=Xt,y=y,
+                                         tau0=params$tau0, tau1=params$tau1, q=params$q, 
+                                         a0=params$a0,b0=params$b0, rinit=NULL, verbose=TRUE,
+                                         store=store))
+        if(store){
+          delta <- rowSums(sota_chain$z[c(1:(chain_length-1)),]!=sota_chain$z[c(2:chain_length),])
+          no_active <- rowSums(sota_chain$z[c(1:chain_length),])
+          
+          sota_tpr <- mean(colMeans(sota_chain$z[c(burnin:chain_length),signal_indices,drop=FALSE])>0.5)
+          sota_fdr <- mean(colMeans(sota_chain$z[c(burnin:chain_length),!signal_indices,drop=FALSE])>0.5)
+          sota_mse <- mean((colMeans(sota_chain$beta[c(burnin:chain_length),])-logreg_sync_data$true_beta)^2)
+          
+          output <- 
+            rbind(output, 
+                  data.frame(algo='Sota', time=as.double(sota_time_taken[1])/chain_length, 
+                             tpr=sota_tpr, fdr=sota_fdr, mse=sota_mse, delta_mean=mean(delta), delta_var=var(delta), 
+                             no_active_mean=mean(no_active), no_active_var=var(no_active), n=n, p=p, s0, iteration=i))
+        } else{
+          output <- 
+            rbind(output, 
+                  data.frame(algo='Sota', time=as.double(sota_time_taken[1])/chain_length, 
+                             n=n, p=p, s0, iteration=i))
+        }
+      }
+      
+      if('SkinnyGibbs' %in% algos){
+        # Skinny Gibbs: Initializing from the prior
+        z <- rbinom(p,1,params$q)
+        sigma2 <- 1/rgamma(1,shape = (params$a0/2), rate = (params$b0/2))
+        beta <- rnorm(p)
+        beta[z==0] <- beta[z==0]*(params$tau0*sqrt(sigma2))
+        beta[z==1] <- beta[z==1]*(params$tau1*sqrt(sigma2))
+        skinnygibbs_time_taken <-
+          system.time(
+            skinny_chain <-
+              skinnybasad(X,y,params$q,beta,z,nsplit=10,modif=1,nburn=burnin,
+                          niter=(chain_length-burnin),printitrsep=1,a0=1,b0=1)
+          )
+        
+        if(store){
+          skinny_tpr <- mean(skinny_chain$marZ[signal_indices,drop=FALSE]>0.5)
+          skinny_fdr <- mean(skinny_chain$marZ[!signal_indices,drop=FALSE]>0.5)
+          skinny_mse <- NA
+          output <- 
+            rbind(output, 
+                  data.frame(algo='SkinnyGibbs', time=as.double(skinnygibbs_time_taken[1])/chain_length, 
+                             tpr=skinny_tpr, fdr=skinny_fdr, mse=skinny_mse,
+                             delta_mean=NA, delta_var=NA, 
+                             no_active_mean=NA, no_active_var=NA, 
+                             n=n, p=p, s0, iteration=i))
+        } else{
+          output <- 
+            rbind(output, 
+                  data.frame(algo='SkinnyGibbs', time=as.double(skinnygibbs_time_taken[1])/chain_length, 
+                             n=n, p=p, s0, iteration=i))
+        }
+      }
+      
+      print(n_p_error_s0)
+      return(output)
+    }
+}
 
 

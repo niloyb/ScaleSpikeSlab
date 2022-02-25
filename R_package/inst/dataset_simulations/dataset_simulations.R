@@ -1,8 +1,8 @@
 # Logistic regression dataset example
 rm(list=ls())
-# library(ScalableSpikeSlab)
-source('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScalableSpikeSlab/inst/comparisons/comparison_functions.R')
-source('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScalableSpikeSlab/R/helper_functions.R')
+library(ScaleSpikeSlab)
+source('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/comparisons/comparison_functions.R')
+# source('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScalableSpikeSlab/R/helper_functions.R')
 
 library(doParallel)
 registerDoParallel(cores = detectCores()-1)
@@ -16,6 +16,12 @@ library(datamicroarray)
 # datamicroarray_datasets <- c("borovecki","chin","chowdary","gordon")
 # describe_data()
 
+library(dplyr)
+library(ggplot2)
+library(latex2exp)
+library(reshape2)
+library(ggridges)
+library(ggpubr)
 
 
 
@@ -24,7 +30,7 @@ comparison_dataset_sims <- function(data,chain_length=1e4,burnin=5e3,no_chains=1
   ######################### Import dataset #########################
   # Lin reg datasets
   if(data=='Riboflavin'){
-    load('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScalableSpikeSlab/inst/dataset_simulations/riboflavin.RData')
+    load('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/data/riboflavin.RData')
     y <- riboflavin$y
     X <- riboflavin$x
     colnames(X) <- NULL
@@ -36,7 +42,7 @@ comparison_dataset_sims <- function(data,chain_length=1e4,burnin=5e3,no_chains=1
   }
   # Log reg datasets
   if(data=='Malware'){
-    malware_data <- read.csv('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScalableSpikeSlab/inst/dataset_simulations/uci_malware_detection.csv', header = TRUE)
+    malware_data <- read.csv('/Users/niloybiswas/Downloads/uci_malware_detection.csv', header = TRUE)
     y <- as.matrix(rep(0, nrow(malware_data)))
     y[malware_data[,1]=='malicious',] <- 1
     X <- as.matrix(malware_data[,-1])
@@ -129,25 +135,26 @@ comparison_dataset_sims <- function(data,chain_length=1e4,burnin=5e3,no_chains=1
   X <- X[,col_sds!=0]
   X <- as.matrix(scale(X),n,p)
   Xt <- t(X)
+  XXt <- X%*%Xt
+  
   # Select hyperparameters
   params <- spike_slab_params(n, p)
-  
+  tau0_inverse <- chol2inv(chol(diag(n) + params$tau0^2 * XXt))
+  tau1_inverse <- chol2inv(chol(diag(n) + params$tau1^2 * XXt))
   
   foreach(i = c(1:no_chains), .combine = rbind)%dopar%{
     output <- data.frame()
-    
     if('ScalableSpikeSlab' %in% algos){
       ###### Scalable spike and slab
       sss_time_taken <-
         system.time(
           sss_chain <- 
-            comparison_spike_slab_mcmc(chain_length=chain_length, X=X,Xt=Xt,y=y,
-                                       tau0=params$tau0, tau1=params$tau1, q=params$q, 
-                                       a0=params$a0,b0=params$b0, algo='ScalableSpikeSlab', rinit=NULL, verbose=TRUE,
-                                       burnin=burnin, store=FALSE))
-      
-      I(list(as.vector(sss_chain$z_ergodic_avg)))
-      
+            spike_slab_mcmc(chain_length=chain_length, X=X, y=y,
+                            tau0=params$tau0, tau1=params$tau1, q=params$q, 
+                            a0=params$a0,b0=params$b0, rinit=NULL, verbose=TRUE,
+                            burnin=burnin, store=FALSE, Xt=Xt, XXt=XXt, 
+                            tau0_inverse=tau0_inverse, tau1_inverse=tau1_inverse)
+          )
       output <- 
         rbind(output, 
               data.frame(algo='ScalableSpikeSlab', time=as.double(sss_time_taken[1])/chain_length, 
@@ -159,10 +166,10 @@ comparison_dataset_sims <- function(data,chain_length=1e4,burnin=5e3,no_chains=1
       sota_time_taken <-
         system.time(
           sota_chain <- 
-            comparison_spike_slab_mcmc(chain_length=chain_length, X=X,Xt=Xt,y=y,
-                                       tau0=params$tau0, tau1=params$tau1, q=params$q, 
-                                       a0=params$a0,b0=params$b0, algo='Sota', rinit=NULL, verbose=TRUE,
-                                       burnin=burnin, store=FALSE))
+            sota_spike_slab_mcmc(chain_length=chain_length, X=X,Xt=Xt,y=y,
+                                 tau0=params$tau0, tau1=params$tau1, q=params$q, 
+                                 a0=params$a0,b0=params$b0, rinit=NULL, verbose=TRUE,
+                                 burnin=burnin, store=FALSE))
       
       output <- 
         rbind(output, 
@@ -195,7 +202,7 @@ sss_sota_comparison_df <-
             z_avg=I(list(colMeans(do.call(rbind, z_ergodic_avg)))),
             data,n=n, p=p)
 
-filename1 <- paste("/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScalableSpikeSlab/inst/dataset_simulations/",data,'_sims.RData',sep = '')
+filename1 <- paste("/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/dataset_simulations/",data,'_sims.RData',sep = '')
 # save(file = filename1, sss_sota_comparison_df)
 
 ############### Plot of runtime comparison of different datasets ###############
@@ -219,7 +226,7 @@ sss_sota_multi_dataset_time_comparison_df <-
   summarise(time_mean = mean(time), time_sd = sd(time),dataset,n=n, p=p) %>% 
   arrange((n^2*p))
 
-filename2 <- paste("/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScalableSpikeSlab/inst/dataset_simulations/multiple_dataset_sims.RData",sep = '')
+filename2 <- paste("/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/dataset_simulations/multiple_dataset_sims.RData",sep = '')
 # save(file = filename2, sss_sota_multi_dataset_time_comparison_df)
 
 

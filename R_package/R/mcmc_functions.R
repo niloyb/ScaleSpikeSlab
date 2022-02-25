@@ -7,50 +7,117 @@ matrix_full <- function(Xt, d){
   # return(crossprod(Xt*c(1/d)^0.5) + diag(n))
   return(fcprd(Xt*c(1/d)^0.5) + diag(n))
 }
-matrix_precompute <- function(Xt, d, prev_d, prev_matrix){
-  if(sum(d!=prev_d)==0){return(prev_matrix)}
+matrix_precompute <- function(Xt, d, prev_d, prev_matrix, XXt, tau0, tau1){
+  p <- dim(Xt)[1]
+  n <- dim(Xt)[2]
+  no_swaps <- sum(d!=prev_d)
+  slab_indices <- d!=1/(tau0)^2
+  no_slabs <- sum(slab_indices)
+  no_spikes <- p-no_slabs
   
-  pos_indices <- (1/d-1/prev_d)>0
-  if(sum(pos_indices)==0){
-    pos_part <- 0
-  } else{
-    pos_d_update <- (1/d-1/prev_d)[pos_indices]
-    pos_Xt_update <- Xt[pos_indices,,drop=FALSE]
-    pos_Xt_d_update <- pos_Xt_update*(pos_d_update^0.5)
-    pos_part <- fcprd(pos_Xt_d_update)
+  if(no_swaps==0){return(prev_matrix)}
+  if(no_slabs==0){
+    tau0_mat <- tau0^2*XXt
+    diag(tau0_mat) <- diag(tau0_mat)+1
+    return(tau0_mat)
+  }
+  if(no_spikes==0){
+    tau1_mat <- tau1^2*XXt
+    diag(tau1_mat) <- diag(tau1_mat)+1
+    return(tau1_mat)
   }
   
-  neg_indices <- (1/d-1/prev_d)<0
-  if(sum(neg_indices)==0){
-    neg_part <- 0
+  if(no_slabs==0){return(diag(n)+tau0^2*XXt)}
+  if(no_spikes==0){return(diag(n)+tau1^2*XXt)}
+  
+  if(no_swaps<min(no_slabs, no_spikes)){
+    pos_indices <- (1/d-1/prev_d)>0
+    if(sum(pos_indices)==0){
+      pos_part <- 0
+    } else{
+      pos_d_update <- (1/d-1/prev_d)[pos_indices]
+      pos_Xt_update <- Xt[pos_indices,,drop=FALSE]
+      pos_Xt_d_update <- pos_Xt_update*(pos_d_update^0.5)
+      pos_part <- fcprd(pos_Xt_d_update)
+    }
+    neg_indices <- (1/d-1/prev_d)<0
+    if(sum(neg_indices)==0){
+      neg_part <- 0
+    } else{
+      neg_d_update <- -(1/d-1/prev_d)[neg_indices]
+      neg_Xt_update <- Xt[neg_indices,,drop=FALSE]
+      neg_Xt_d_update <- neg_Xt_update*(neg_d_update^0.5)
+      neg_part <- fcprd(neg_Xt_d_update)
+    }
+    return(pos_part-neg_part+prev_matrix)
+  } else if (no_slabs<=min(no_swaps, no_spikes)){
+    Xt_update <- Xt[slab_indices,,drop=FALSE]
+    update_part <- fcprd(Xt_update)*(tau1^2-tau0^2)
+    # return(diag(n)+tau0^2*XXt+update_part)
+    tau0_mat <- tau0^2*XXt
+    diag(tau0_mat) <- diag(tau0_mat)+1
+    return(tau0_mat+update_part)
   } else{
-    neg_d_update <- -(1/d-1/prev_d)[neg_indices]
-    neg_Xt_update <- Xt[neg_indices,,drop=FALSE]
-    neg_Xt_d_update <- neg_Xt_update*(neg_d_update^0.5)
-    neg_part <- fcprd(neg_Xt_d_update)
+    Xt_update <- Xt[!slab_indices,,drop=FALSE]
+    update_part <- fcprd(Xt_update)*(tau0^2-tau1^2)
+    # return(diag(n)+tau1^2*XXt+update_part)
+    tau1_mat <- tau1^2*XXt
+    diag(tau1_mat) <- diag(tau1_mat)+1
+    return(tau1_mat+update_part)
   }
-  return(pos_part-neg_part+prev_matrix)
 }
-inverse_precompute <- function(Xt, d, prev_d, prev_inverse){
+
+inverse_precompute <- 
+  function(Xt, d, prev_d, prev_inverse, tau0_inverse, tau1_inverse, tau0, tau1){
+  p <- dim(Xt)[1]
+  n <- dim(Xt)[2]
+  
   swap_indices <- (d!=prev_d)
   no_swaps <- sum(swap_indices)
-  if(no_swaps==0){return(prev_inverse)}
+  slab_indices <- d!=1/(tau0)^2
+  no_slabs <- sum(slab_indices)
+  no_spikes <- p-no_slabs
   
-  diag_diff <- (1/d-1/prev_d)[swap_indices]
-  Xt_update <- Xt[swap_indices,,drop=FALSE]
-  Xt_update_prev_inverse <- cpp_prod(Xt_update,prev_inverse)
-  M_matrix <- diag(1/diag_diff, no_swaps)+cpp_prod(Xt_update_prev_inverse,t(Xt_update))
-  # Use (M_matrix+t(M_matrix))/2 to avoid numerical error, as M_matrix symmetric
-  M_matrix_inverse <- solve((M_matrix+t(M_matrix))/2)
-  inverse_update <- cpp_prod(t(Xt_update_prev_inverse),
-                             cpp_prod(M_matrix_inverse,Xt_update_prev_inverse))
-  return(prev_inverse-inverse_update)
+  # print(c(no_swaps, no_slabs, no_spikes))
+  
+  if(no_swaps==0){return(prev_inverse)}
+  if(no_slabs==0){return(tau0_inverse)}
+  if(no_spikes==0){return(tau1_inverse)}
+  
+  if(no_swaps<min(no_slabs, no_spikes)){
+    diag_diff <- (1/d-1/prev_d)[swap_indices]
+    Xt_update <- Xt[swap_indices,,drop=FALSE]
+    Xt_update_prev_inverse <- cpp_prod(Xt_update,prev_inverse)
+    M_matrix <- diag(1/diag_diff, no_swaps)+cpp_prod(Xt_update_prev_inverse,t(Xt_update))
+    # Use (M_matrix+t(M_matrix))/2 to avoid numerical error, as M_matrix symmetric
+    M_matrix_inverse <- solve((M_matrix+t(M_matrix))/2)
+    inverse_update <- cpp_prod(t(Xt_update_prev_inverse),
+                               cpp_prod(M_matrix_inverse,Xt_update_prev_inverse))
+    return(prev_inverse-inverse_update)
+  } else if (no_slabs<=min(no_swaps, no_spikes)){
+    Xt_update <- Xt[slab_indices,,drop=FALSE]
+    Xt_update_prev_inverse <- cpp_prod(Xt_update,tau0_inverse)
+    M_matrix <- diag(no_slabs)/(tau1^2-tau0^2) + cpp_prod(Xt_update_prev_inverse,t(Xt_update))
+    M_matrix_inverse <- solve((M_matrix+t(M_matrix))/2)
+    inverse_update <- cpp_prod(t(Xt_update_prev_inverse),
+                               cpp_prod(M_matrix_inverse,Xt_update_prev_inverse))
+    return(tau0_inverse-inverse_update)
+  } else{
+    Xt_update <- Xt[!slab_indices,,drop=FALSE]
+    Xt_update_prev_inverse <- cpp_prod(Xt_update,tau1_inverse)
+    M_matrix <- diag(no_spikes)/(tau0^2-tau1^2) + cpp_prod(Xt_update_prev_inverse,t(Xt_update))
+    M_matrix_inverse <- solve((M_matrix+t(M_matrix))/2)
+    inverse_update <- cpp_prod(t(Xt_update_prev_inverse),
+                               cpp_prod(M_matrix_inverse,Xt_update_prev_inverse))
+    return(tau1_inverse-inverse_update)
+  }
 }
 
 ## Spike slab linear regression functions ##
 # beta update
 update_beta <- function(z, sigma2, X, Xt, y, prev_z, prev_matrix, 
-                        prev_inverse, tau0, tau1, u=NULL, delta=NULL){
+                        prev_inverse, XXt, tau0_inverse, tau1_inverse,
+                        tau0, tau1, u=NULL, delta=NULL){
   p <- length(z)
   n <- length(y)
   no_swaps <- sum(z!=prev_z)
@@ -64,11 +131,11 @@ update_beta <- function(z, sigma2, X, Xt, y, prev_z, prev_matrix,
   # v = cpp_mat_vec_prod(X,u) + delta
   v = X%*%u + delta
   
-  M_matrix <- matrix_precompute(Xt, d, prev_d, prev_matrix)
+  M_matrix <- matrix_precompute(Xt, d, prev_d, prev_matrix, XXt, tau0, tau1)
   
   if(no_swaps<n){
-    M_matrix_inverse <- inverse_precompute(Xt, d, prev_d, prev_inverse)
-    weighted_cprd <- NA
+    M_matrix_inverse <- 
+      inverse_precompute(Xt, d, prev_d, prev_inverse, tau0_inverse, tau1_inverse, tau0, tau1)
   } else {
     M_matrix_inverse <- chol2inv(chol(M_matrix))
   }
@@ -114,10 +181,11 @@ update_sigma2 <- function(beta, z, tau0, tau1, a0, b0, X, y, u_crn=NULL){
 
 spike_slab_linear_kernel <- 
   function(beta, z, sigma2, X, Xt, y, prev_z, prev_matrix, prev_inverse,
-           tau0, tau1, q, a0, b0, random_samples){
+           XXt, tau0_inverse, tau1_inverse, tau0, tau1, q, a0, b0, random_samples){
     beta_output <- 
       update_beta(z, sigma2, X, Xt, y, prev_z, prev_matrix, prev_inverse,
-                  tau0, tau1, u=random_samples$beta_u, delta=random_samples$beta_delta)
+                  XXt, tau0_inverse, tau1_inverse, tau0, tau1, 
+                  u=random_samples$beta_u, delta=random_samples$beta_delta)
     mat <- beta_output$matrix
     mat_inverse <- beta_output$matrix_inverse
     beta_new <- beta_output$beta
@@ -143,14 +211,19 @@ spike_slab_linear_kernel <-
 #' Bayesian linear regression with spike and slab priors
 #' @export
 spike_slab_linear <- 
-  function(chain_length,X,Xt,y,tau0,tau1,q,a0=1,b0=1,rinit=NULL,verbose=FALSE,
-           burnin=0,store=TRUE){
+  function(chain_length,X,y,tau0,tau1,q,a0=1,b0=1,rinit=NULL,verbose=FALSE,burnin=0,store=TRUE,
+           Xt=NULL, XXt=NULL, tau0_inverse=NULL, tau1_inverse=NULL){
     p <- dim(X)[2]
     n <- length(y)
+    if(is.null(Xt)){Xt <- t(X)}
+    if(is.null(XXt)){XXt <- fcprd(Xt)}
+    if(is.null(tau0_inverse)){tau0_inverse <- chol2inv(chol(diag(n)+tau0^2*XXt))}
+    if(is.null(tau1_inverse)){tau1_inverse <- chol2inv(chol(diag(n)+tau1^2*XXt))}
+    
     if(is.null(rinit)){
       # Initializing from the prior
       z <- rbinom(p,1,q)
-      sigma2 <- 1/rgamma(1,shape = (a0/2), rate = (b0/2))
+      sigma2 <- 1/rgamma(1,shape=(a0/2), rate=(b0/2))
       beta <- rnorm(p)
       beta[z==0] <- beta[z==0]*(tau0*sqrt(sigma2))
       beta[z==1] <- beta[z==1]*(tau1*sqrt(sigma2))
@@ -177,6 +250,7 @@ spike_slab_linear <-
       new_state <- 
         spike_slab_linear_kernel(beta, z, sigma2, X, Xt, y, 
                                  prev_z, prev_matrix, prev_inverse,
+                                 XXt, tau0_inverse, tau1_inverse,
                                  tau0, tau1, q, a0, b0, random_samples)
       beta <- new_state$beta
       z <- new_state$z
@@ -226,10 +300,11 @@ update_e <- function(beta, sigma2, y, X, u_crn=NULL){
   }
 spike_slab_logistic_kernel <- 
   function(beta, z, e, sigma2, X, Xt, y, prev_z, prev_matrix, prev_inverse,
-           tau0, tau1, q, a0, b0, random_samples){
+           XXt, tau0_inverse, tau1_inverse, tau0, tau1, q, random_samples){
     beta_output <- 
       update_beta(z, sigma2, X, Xt, e, prev_z, prev_matrix, prev_inverse,
-                  tau0, tau1, u=random_samples$beta_u, delta=random_samples$beta_delta)
+                  XXt, tau0_inverse, tau1_inverse, tau0, tau1, 
+                  u=random_samples$beta_u, delta=random_samples$beta_delta)
     mat <- beta_output$matrix
     mat_inverse <- beta_output$matrix_inverse
     beta_new <- beta_output$beta
@@ -254,19 +329,26 @@ spike_slab_logistic_kernel <-
 #' @param tau0 prior hyperparameter (non-negative real)
 #' @param tau1 prior hyperparameter (non-negative real)
 #' @param q prior hyperparameter (strictly between 0 and 1)
-#' @param a0 prior hyperparameter (non-negative real)
-#' @param b0 prior hyperparameter (non-negative real)
 #' @return Output from Markov chain targeting the posterior corresponding to
 #' Bayesian logistic regression with spike and slab priors
 #' @export
 spike_slab_logistic <- 
-  function(chain_length,X,Xt,y,tau0,tau1,q,a0=1,b0=1,rinit=NULL,verbose=FALSE,
-           burnin=0,store=TRUE){
+  function(chain_length,X,y,tau0,tau1,q,rinit=NULL,verbose=FALSE,burnin=0,store=TRUE,
+           Xt=NULL, XXt=NULL, tau0_inverse=NULL, tau1_inverse=NULL){
     p <- dim(X)[2]
     n <- length(y)
+    if(is.null(Xt)){Xt <- t(X)}
+    if(is.null(XXt)){XXt <- fcprd(Xt)}
+    if(is.null(tau0_inverse)){tau0_inverse <- chol2inv(chol(diag(n)+tau0^2*XXt))}
+    if(is.null(tau1_inverse)){tau1_inverse <- chol2inv(chol(diag(n)+tau1^2*XXt))}
+    
     if(is.null(rinit)){
       # Initializing from the prior
       z <- rbinom(p,1,q)
+      nu <- 7.3
+      w2 <- (pi^2)*(nu-2)/(3*nu)
+      a0 <- nu
+      b0 <- w2*nu
       sigma2 <- 1/rgamma(1,shape = (a0/2), rate = (b0/2))
       beta <- rnorm(p)
       beta[z==0] <- beta[z==0]*(tau0*sqrt(sigma2))
@@ -281,10 +363,10 @@ spike_slab_logistic <-
     }
     
     if(store){
-      beta_samples <- matrix(NA, nrow = chain_length, ncol = p)
-      z_samples <- matrix(NA, nrow = chain_length, ncol = p)
-      e_samples <- matrix(NA, nrow = chain_length, ncol = n)
-      sigma2_samples <- matrix(NA, nrow = chain_length, ncol = 1)
+      beta_samples <- matrix(NA, nrow = (chain_length-burnin), ncol = p)
+      z_samples <- matrix(NA, nrow = (chain_length-burnin), ncol = p)
+      e_samples <- matrix(NA, nrow = (chain_length-burnin), ncol = n)
+      sigma2_samples <- matrix(NA, nrow = (chain_length-burnin), ncol = 1)
     } else {
       beta_ergodic_sum <- rep(0,p)
       z_ergodic_sum <- rep(0,p)
@@ -298,7 +380,8 @@ spike_slab_logistic <-
       new_state <- 
         spike_slab_logistic_kernel(beta, z, e, sigma2, X, Xt, y, 
                                    prev_z, prev_matrix, prev_inverse,
-                                   tau0, tau1, q, a0, b0, random_samples)
+                                   XXt, tau0_inverse, tau1_inverse,
+                                   tau0, tau1, q, random_samples)
       beta <- new_state$beta
       z <- new_state$z
       e <- new_state$e
@@ -349,12 +432,14 @@ spike_slab_logistic <-
 #' Bayesian linear or logistic regression with spike and slab priors
 #' @export
 spike_slab_mcmc <- 
-  function(chain_length,X,Xt,y,tau0,tau1,q,a0=1,b0=1,type=NULL,rinit=NULL,verbose=FALSE,
-           burnin=0,store=TRUE){
+  function(chain_length,X,y,tau0,tau1,q,a0=1,b0=1,rinit=NULL,verbose=FALSE,
+           burnin=0,store=TRUE,Xt=NULL, XXt=NULL, tau0_inverse=NULL, tau1_inverse=NULL){
     # Binary 0,1 labels for logistic regression
     if(all(y*(1-y)==0)){ 
-      return(spike_slab_logistic(chain_length,X,Xt,y,tau0,tau1,q,a0,b0,rinit,verbose,burnin,store))
+      return(spike_slab_logistic(chain_length,X,y,tau0,tau1,q,rinit,verbose,burnin,store,
+                                 Xt, XXt, tau0_inverse, tau1_inverse))
     } else {
-      return(spike_slab_linear(chain_length,X,Xt,y,tau0,tau1,q,a0,b0,rinit,verbose,burnin,store))
+      return(spike_slab_linear(chain_length,X,y,tau0,tau1,q,a0,b0,rinit,verbose,burnin,store,
+                               Xt, XXt, tau0_inverse, tau1_inverse))
     }
   }

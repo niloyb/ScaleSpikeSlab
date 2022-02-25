@@ -5,14 +5,17 @@ rcpp_hello_world <- function() {
     .Call(`_ScaleSpikeSlab_rcpp_hello_world`)
 }
 
+#' @export
 fcprd <- function(X) {
     .Call(`_ScaleSpikeSlab_fcprd`, X)
 }
 
+#' @export
 cpp_prod <- function(X, Y) {
     .Call(`_ScaleSpikeSlab_cpp_prod`, X, Y)
 }
 
+#' @export
 cpp_mat_vec_prod <- function(X, y) {
     .Call(`_ScaleSpikeSlab_cpp_mat_vec_prod`, X, y)
 }

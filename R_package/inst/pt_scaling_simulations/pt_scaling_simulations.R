@@ -1,20 +1,10 @@
-# Simulation study on sythetic datasets 
+# Simulation study on synthetic datasets 
 rm(list=ls())
-library(ssstest)
-# source('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScalableSpikeSlab/R/mcmc_functions.R')
-# source('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScalableSpikeSlab/R/helper_functions.R')
 
-
+library(ScaleSpikeSlab)
 library(doParallel)
 registerDoParallel(cores = detectCores()-1)
 library(foreach)
-
-library(dplyr)
-library(ggplot2)
-library(latex2exp)
-library(reshape2)
-library(ggridges)
-library(ggpubr)
 
 ###### Function to for run-time simulations ######
 generate_sims <- function(n_p_error_s0_list,chain_length=1e4,burnin=5e3,no_repeats=1){
@@ -27,7 +17,6 @@ generate_sims <- function(n_p_error_s0_list,chain_length=1e4,burnin=5e3,no_repea
       
       syn_data <- synthetic_data(n=n,p=p,s0=s0,error_std=error_std,type='linear',signal='constant')
       X <- syn_data$X
-      # X <- matrix(scale(X), n, p)
       y <- syn_data$y
       Xt <- t(X)
       signal_indices <- syn_data$true_beta!=0
@@ -41,8 +30,9 @@ generate_sims <- function(n_p_error_s0_list,chain_length=1e4,burnin=5e3,no_repea
                             tau0=params$tau0, tau1=params$tau1, q=params$q, 
                             a0=params$a0,b0=params$b0, rinit=NULL, verbose=TRUE))
       
-      pt <- c(NA,rowSums(sss_chain$z[c(1:(chain_length-1)),]!=sss_chain$z[c(2:chain_length),]))
+      delta_t <- c(NA,rowSums(sss_chain$z[c(1:(chain_length-1)),]!=sss_chain$z[c(2:chain_length),]))
       no_active <- rowSums(sss_chain$z[c(1:chain_length),])
+      p_t <- pmin(delta_t, no_active, na.rm = TRUE)
       
       sss_tpr <- mean(colMeans(sss_chain$z[c(burnin:chain_length),signal_indices,drop=FALSE])>0.5)
       sss_fdr <- mean(colMeans(sss_chain$z[c(burnin:chain_length),!signal_indices,drop=FALSE])>0.5)
@@ -51,8 +41,8 @@ generate_sims <- function(n_p_error_s0_list,chain_length=1e4,burnin=5e3,no_repea
       print(c(n,p,s0,error_std))
       
       return(data.frame(algo='ScalableSpikeSlab', time=as.double(sss_time_taken[1])/chain_length, tpr=sss_tpr, fdr=sss_fdr, mse=sss_mse,
-                        t = c(burnin:chain_length), pt_values = pt[burnin:chain_length], no_active_values = no_active[burnin:chain_length],
-                        n=n, p=p, s0=s0, iteration=i))
+                        t = c(burnin:chain_length), delta_t_values = delta_t[burnin:chain_length], no_active_values = no_active[burnin:chain_length],
+                        p_t_values = p_t[burnin:chain_length], n=n, p=p, s0=s0, iteration=i))
     }
 }
 
@@ -62,11 +52,11 @@ n_p_error_s0_list <- split(n_p_error_s0_grid, 1:nrow(n_p_error_s0_grid))
 vary_p_df <- generate_sims(n_p_error_s0_list)
 vary_p_summary <-
   vary_p_df %>% 
-  dplyr::select(t, pt_values, no_active_values, n, p, s0) %>%
+  dplyr::select(t, p_t_values, n, p, s0) %>%
   reshape2::melt(id=c('t','n', 'p')) %>%
   group_by(n,p,variable) %>% 
   summarise(mean=mean(value), sd=sd(value), length=n())
-# save(vary_p_summary, file = '/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScalableSpikeSlab/inst/scaling_simulations/vary_p_summary.Rdata')
+# save(vary_p_summary, file = '/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/pt_scaling_simulations/vary_p_summary.Rdata')
 
 ## Fix p vary n ##
 n_p_error_s0_grid <- data.frame(n=seq(100,1000,100), p=1000, error_std=2, s0=10)
@@ -74,11 +64,11 @@ n_p_error_s0_list <- split(n_p_error_s0_grid, 1:nrow(n_p_error_s0_grid))
 vary_n_df <- generate_sims(n_p_error_s0_list)
 vary_n_summary <-
   vary_n_df %>% 
-  dplyr::select(t, pt_values, no_active_values, n, p, s0) %>%
+  dplyr::select(t, p_t_values, n, p, s0) %>%
   reshape2::melt(id=c('t','n', 'p')) %>%
   group_by(n,p,variable) %>% 
   summarise(mean=mean(value), sd=sd(value), length=n())
-# save(vary_n_summary, file = '/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScalableSpikeSlab/inst/scaling_simulations/vary_n_summary.Rdata')
+# save(vary_n_summary, file = '/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/pt_scaling_simulations/vary_n_summary.Rdata')
 
 ## Vary sparsity ##
 s0_seq <- c(1:20)
@@ -87,33 +77,38 @@ n_p_error_s0_list <- split(n_p_error_s0_grid, 1:nrow(n_p_error_s0_grid))
 vary_s_df <- generate_sims(n_p_error_s0_list)
 vary_s_summary <-
   vary_s_df %>% 
-  dplyr::select(t, pt_values, no_active_values, n, p, s0) %>%
+  dplyr::select(t, p_t_values, n, p, s0) %>%
   dplyr::mutate(sparsity=s0) %>%
   reshape2::melt(id=c('t','n','p','s0')) %>%
   group_by(n,p,s0,variable) %>% 
   summarise(mean=mean(value), sd=sd(value), length=n())
-# save(vary_s_summary, file = '/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScalableSpikeSlab/inst/scaling_simulations/vary_s_summary.Rdata')
+# save(vary_s_summary, file = '/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/pt_scaling_simulations/vary_s_summary.Rdata')
 
 
+###### Plots ######
+library(dplyr)
+library(ggplot2)
+library(latex2exp)
+library(reshape2)
+library(ggridges)
+library(ggpubr)
 
 
-
-
-# load('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScalableSpikeSlab/inst/scaling_simulations/vary_p_summary.Rdata')
+# load('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/pt_scaling_simulations/vary_p_summary.Rdata')
 vary_p_plot <- 
   ggplot(vary_p_summary, aes(x=p, y=mean, linetype=variable)) + 
   geom_line(size=0.5) +
   geom_ribbon(aes(ymin=mean-sd, ymax=mean+sd,
                   fill=variable),alpha=0.2, colour = NA) +
-  xlab(TeX('Dimension $p$')) + ylab(TeX('Average cost parameter')) +
+  xlab(TeX('Dimension $p$')) + ylab(TeX('Average cost parameter $p_t$')) +
   scale_linetype_manual(name=TeX(''),
-                        breaks = c("pt_values", "no_active_values", "s0"),
-                        labels=unname(TeX(c('$p_t$','$|z_t|_1$','Sparsity $s$'))),
-                        values = c('solid','dashed', 'dotted')) +
+                        breaks = c("p_t_values", "s0"),
+                        labels=unname(TeX(c('$p_t$','Sparsity $s$'))),
+                        values = c('solid','dotted')) +
   scale_fill_manual(values = c('black','black', 'black'),guide='none') +
-  scale_y_continuous(limits = c(0,20), breaks = seq(0,20,5)) +
+  scale_y_continuous(limits = c(0,12), breaks = seq(0,20,4)) +
   scale_x_continuous(limits = c(0,3e3), breaks = seq(0,5e3,1000)) +
-  theme_classic(base_size = 9) +
+  theme_classic(base_size = 12) +
   theme(legend.position = 'bottom', legend.key.width=unit(1,"cm"), legend.text = element_text(size=10)) +
   # theme(plot.margin=unit(c(1,1,2,0.5),"cm")) +
   # theme(legend.position = c(0.5, -0.1), legend.key.width=unit(1,"cm")) +
@@ -122,7 +117,7 @@ vary_p_plot
 # ggsave(filename = "/Users/niloybiswas/Dropbox/Apps/Overleaf/fast_spike_slab/images/vary_p_plot.pdf", plot = vary_p_plot, width = 4, height = 2.5)
 
 
-# load('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScalableSpikeSlab/inst/scaling_simulations/vary_n_summary.Rdata')
+# load('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/pt_scaling_simulations/vary_n_summary.Rdata')
 vary_n_plot <- 
   ggplot(vary_n_summary, aes(x=n, y=mean, linetype=variable)) + 
   geom_line(size=0.5) +
@@ -130,13 +125,13 @@ vary_n_plot <-
                   fill=variable),alpha=0.2, colour = NA) +
   xlab(TeX('No. observations $n$')) + ylab(TeX('')) +
   scale_linetype_manual(name=TeX(''),
-                        breaks = c("pt_values", "no_active_values", "s0"),
-                        labels=unname(TeX(c('$p_t$','$|z_t|_1$','Sparsity $s$'))),
-                        values = c('solid','dashed', 'dotted')) +
+                        breaks = c("p_t_values", "s0"),
+                        labels=unname(TeX(c('$p_t$','Sparsity $s$'))),
+                        values = c('solid', 'dotted')) +
   scale_fill_manual(values = c('black','black', 'black'),guide='none') +
-  # scale_y_continuous(limits = c(0,12), breaks = seq(0,16,4)) +
+  scale_y_continuous(limits = c(0,12), breaks = seq(0,20,4)) +
   scale_x_continuous(breaks = seq(100,1000,300)) +
-  theme_classic(base_size = 9) +
+  theme_classic(base_size = 12) +
   theme(legend.position = 'bottom', legend.key.width=unit(1,"cm"), legend.text = element_text(size=10)) +
   # theme(plot.margin=unit(c(1,1,2,0.5),"cm")) +
   # theme(legend.position = c(0.5, -0.1), legend.key.width=unit(1,"cm")) +
@@ -145,7 +140,7 @@ vary_n_plot
 # ggsave(filename = "/Users/niloybiswas/Dropbox/Apps/Overleaf/fast_spike_slab/images/vary_n_plot.pdf", plot = vary_n_plot, width = 4, height = 2.5)
 
 
-# load('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScalableSpikeSlab/inst/scaling_simulations/vary_s_summary.Rdata')
+# load('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/pt_scaling_simulations/vary_s_summary.Rdata')
 vary_s_plot <- 
   ggplot(vary_s_summary, aes(x=s0, y=mean, linetype=variable)) + 
   geom_line(size=0.5) +
@@ -153,13 +148,13 @@ vary_s_plot <-
                   fill=variable),alpha=0.2, colour = NA) +
   xlab(TeX('Sparsity $s$')) + ylab(TeX('')) +
   scale_linetype_manual(name=TeX(''),
-                        breaks = c("pt_values", "no_active_values", "sparsity"),
-                        labels=unname(TeX(c('$p_t$','$|z_t|_1$','Sparsity $s$'))),
-                        values = c('solid','dashed', 'dotted')) +
+                        breaks = c("p_t_values", "sparsity"),
+                        labels=unname(TeX(c('$p_t$','Sparsity $s$'))),
+                        values = c('solid', 'dotted')) +
   scale_fill_manual(values = c('black','black', 'black'),guide='none') +
   scale_y_continuous(limits = c(0,25), breaks = seq(0,30,5)) +
   scale_x_continuous(limits = c(0,20), breaks = seq(0,20,10)) +
-  theme_classic(base_size = 9) +
+  theme_classic(base_size = 12) +
   theme(legend.position = 'bottom', legend.key.width=unit(1,"cm"), legend.text = element_text(size=10)) +
   # theme(plot.margin=unit(c(1,1,2,0.5),"cm")) +
   # theme(legend.position = c(0.5, -0.1), legend.key.width=unit(1,"cm")) +
@@ -172,12 +167,12 @@ scaling_plot <-
   ggarrange(vary_p_plot, vary_n_plot, vary_s_plot, common.legend = TRUE, 
             legend = "bottom", nrow=1)
 scaling_plot
-# ggsave(filename = "/Users/niloybiswas/Dropbox/Apps/Overleaf/fast_spike_slab/images/scaling_plot.pdf", plot = scaling_plot, width = 4, height = 4)
+# ggsave(filename = "/Users/niloybiswas/Dropbox/Apps/Overleaf/scalable_spike_slab/images/scaling_plot_arxiv.pdf", plot = scaling_plot, width = 8, height = 4)
 
 scaling_plot2 <- 
-  ggarrange(vary_p_plot + ylab(TeX('Average cost parameter')), 
-            vary_n_plot + ylab(TeX('Average cost parameter')), 
-            vary_s_plot + ylab(TeX('Average cost parameter')), common.legend = TRUE, 
+  ggarrange(vary_p_plot + ylab(TeX('Average cost parameter $p_t$')), 
+            vary_n_plot + ylab(TeX('Average cost parameter $p_t$')), 
+            vary_s_plot + ylab(TeX('Average cost parameter $p_t$')), common.legend = TRUE, 
             legend = "bottom", nrow=3)
 scaling_plot2
 # ggsave(filename = "/Users/niloybiswas/Dropbox/Apps/Overleaf/fast_spike_slab/images/scaling_plot2.pdf", plot = scaling_plot2, width = 4, height = 6)

@@ -7,18 +7,20 @@
 spike_slab_mcmc(
   chain_length,
   X,
-  Xt,
   y,
   tau0,
   tau1,
   q,
   a0 = 1,
   b0 = 1,
-  type = NULL,
   rinit = NULL,
   verbose = FALSE,
   burnin = 0,
-  store = TRUE
+  store = TRUE,
+  Xt = NULL,
+  XXt = NULL,
+  tau0_inverse = NULL,
+  tau1_inverse = NULL
 )
 }
 \arguments{

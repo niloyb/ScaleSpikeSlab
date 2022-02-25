@@ -7,7 +7,6 @@
 spike_slab_linear(
   chain_length,
   X,
-  Xt,
   y,
   tau0,
   tau1,
@@ -17,7 +16,11 @@ spike_slab_linear(
   rinit = NULL,
   verbose = FALSE,
   burnin = 0,
-  store = TRUE
+  store = TRUE,
+  Xt = NULL,
+  XXt = NULL,
+  tau0_inverse = NULL,
+  tau1_inverse = NULL
 )
 }
 \arguments{
