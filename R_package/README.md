@@ -9,9 +9,9 @@ output:
 
 
 
-# ScaleSpikeSlab ($S^3$)
+# ScaleSpikeSlab (S^3)
 
-This package contains algorithms for *Scalable Spike-and-Slab* ($S^3$),
+This package contains algorithms for *Scalable Spike-and-Slab* (S^3),
 a scalable Gibbs sampling implementation for high-dimensional Bayesian 
 regression with the continuous spike-and-slab prior.
 
@@ -52,7 +52,7 @@ y <- riboflavin$y
 # Choose hyperparamters
 params <- spike_slab_params(n=nrow(X),p=ncol(X))
 ```
-#### Run MCMC with $S^3$
+#### Run MCMC with S^3
 
 
 ```r
