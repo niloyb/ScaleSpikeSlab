@@ -6,6 +6,14 @@ library(doParallel)
 registerDoParallel(cores = detectCores()-1)
 library(foreach)
 
+library(dplyr)
+library(ggplot2)
+library(latex2exp)
+library(reshape2)
+library(ggridges)
+library(ggpubr)
+
+
 ###### Function to for run-time simulations ######
 generate_sims <- function(n_p_error_s0_list,chain_length=1e4,burnin=5e3,no_repeats=1){
   foreach(n_p_error_s0 = n_p_error_s0_list, .combine = rbind)%:%
@@ -26,7 +34,7 @@ generate_sims <- function(n_p_error_s0_list,chain_length=1e4,burnin=5e3,no_repea
       sss_time_taken <-
         system.time(
           sss_chain <- 
-            spike_slab_mcmc(chain_length=chain_length, X=X,Xt=Xt,y=y,
+            spike_slab_linear(chain_length=chain_length, X=X,Xt=Xt,y=y,
                             tau0=params$tau0, tau1=params$tau1, q=params$q, 
                             a0=params$a0,b0=params$b0, rinit=NULL, verbose=TRUE))
       
@@ -72,7 +80,8 @@ vary_n_summary <-
 
 ## Vary sparsity ##
 s0_seq <- c(1:20)
-n_p_error_s0_grid <- data.frame(n=10*s0_seq, p=100*s0_seq, error_std=2, s0=s0_seq)
+# n_p_error_s0_grid <- data.frame(n=10*s0_seq, p=100*s0_seq, error_std=2, s0=s0_seq)
+n_p_error_s0_grid <- data.frame(n=100, p=1000, error_std=2, s0=s0_seq)
 n_p_error_s0_list <- split(n_p_error_s0_grid, 1:nrow(n_p_error_s0_grid))
 vary_s_df <- generate_sims(n_p_error_s0_list)
 vary_s_summary <-
@@ -86,13 +95,6 @@ vary_s_summary <-
 
 
 ###### Plots ######
-library(dplyr)
-library(ggplot2)
-library(latex2exp)
-library(reshape2)
-library(ggridges)
-library(ggpubr)
-
 
 # load('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/pt_scaling_simulations/vary_p_summary.Rdata')
 vary_p_plot <- 
@@ -160,7 +162,7 @@ vary_s_plot <-
   # theme(legend.position = c(0.5, -0.1), legend.key.width=unit(1,"cm")) +
   guides(linetype=guide_legend(nrow=1,byrow=TRUE))
 vary_s_plot
-# ggsave(filename = "/Users/niloybiswas/Dropbox/Apps/Overleaf/fast_spike_slab/images/vary_s_plot.pdf", plot = vary_s_plot, width = 4, height = 2.5)
+# ggsave(filename = "/Users/niloybiswas/Dropbox/Apps/Overleaf/scalable_spike_slab/images/vary_s_plot.pdf", plot = vary_s_plot, width = 4, height = 2.5)
 
 
 scaling_plot <- 

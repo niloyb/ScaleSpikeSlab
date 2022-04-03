@@ -23,25 +23,25 @@ library(reshape2)
 library(ggridges)
 library(ggpubr)
 
-
-
-comparison_dataset_sims <- function(data,chain_length=1e4,burnin=5e3,no_chains=1,
-                            algos=c('ScalableSpikeSlab', 'Sota')){
+comparison_dataset_sims <- 
+  function(dataset,chain_length=1e4,burnin=5e3,no_chains=1,
+           algos=c('S3_logistic','S3_probit', 'S3_linear', 
+                   'SOTA_logistic', 'SOTA_probit','SOTA_linear')){
   ######################### Import dataset #########################
   # Lin reg datasets
-  if(data=='Riboflavin'){
-    load('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/data/riboflavin.RData')
+  if(dataset=='Riboflavin'){
+    data("riboflavin")
     y <- riboflavin$y
     X <- riboflavin$x
     colnames(X) <- NULL
     rownames(X) <- NULL
   }
-  if(data=='Maize'){
+  if(dataset=='Maize'){
     load('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/Harvard/PhD/Research/Pierre Jacob Lab/misc/high_dim_datasets/processed_maize_data/design_matrix_Xnew.RData')
     load('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/Harvard/PhD/Research/Pierre Jacob Lab/misc/high_dim_datasets/processed_maize_data/response_ynew.RData')
   }
   # Log reg datasets
-  if(data=='Malware'){
+  if(dataset=='Malware'){
     malware_data <- read.csv('/Users/niloybiswas/Downloads/uci_malware_detection.csv', header = TRUE)
     y <- as.matrix(rep(0, nrow(malware_data)))
     y[malware_data[,1]=='malicious',] <- 1
@@ -49,14 +49,14 @@ comparison_dataset_sims <- function(data,chain_length=1e4,burnin=5e3,no_chains=1
     rownames(X) <- NULL
     colnames(X) <- NULL
   }
-  if(data=='Lymph'){
-    lymph_data <- read.table('/Users/niloybiswas/Dropbox/Apps/Overleaf/fast_spike_slab/datasets/lymph.dat', header = FALSE)
+  if(dataset=='Lymph'){
+    lymph_data <- read.table('/Users/niloybiswas/Dropbox/Apps/Overleaf/scalable_spike_slab/datasets/lymph.dat', header = FALSE)
     y <- lymph_data[,1]
     X <- lymph_data[,-1]
     colnames(X) <- NULL
     rownames(X) <- NULL
   }
-  if(data=='PCR'){
+  if(dataset=='PCR'){
     pcr_data <- read.csv('/Users/niloybiswas/Dropbox/Apps/Overleaf/couplings/code/paper_examples/skinny_gibbs/pcr.csv', header = FALSE)
     # dim(pcr_data)
     X <- t(pcr_data[,-1])
@@ -68,13 +68,13 @@ comparison_dataset_sims <- function(data,chain_length=1e4,burnin=5e3,no_chains=1
     # y <- 1*(y<quantile(y,0.4))
   }
   # Synthetic datasets
-  if(data=='Synthetic Logistic'){
+  if(dataset=='Synthetic_Binary'){
     # Just to sense check things work
     syn_data <- synthetic_data(1000,50000,20,2,signal ='decay',type = 'logistic')
     X <- syn_data$X
     y <- syn_data$y
   }
-  if(data=='Synthetic Linear'){
+  if(dataset=='Synthetic_Continuous'){
     # Just to sense check things work
     syn_data <- synthetic_data(1000,50000,20,2,signal ='decay',type = 'linear')
     X <- syn_data$X
@@ -82,7 +82,7 @@ comparison_dataset_sims <- function(data,chain_length=1e4,burnin=5e3,no_chains=1
   }
   
   # Logistic regression datasets from datamicroarray package
-  if(data=='Borovecki'){
+  if(dataset=='Borovecki'){
     data('borovecki', package = 'datamicroarray')
     X <- borovecki$x
     rownames(X) <- NULL
@@ -93,7 +93,7 @@ comparison_dataset_sims <- function(data,chain_length=1e4,burnin=5e3,no_chains=1
     binary_y[y==unique(as.factor(y))[2]] <- 1
     y <- binary_y
   }
-  if(data=='Chin'){
+  if(dataset=='Chin'){
     data('chin', package = 'datamicroarray')
     X <- chin$x
     rownames(X) <- NULL
@@ -104,7 +104,7 @@ comparison_dataset_sims <- function(data,chain_length=1e4,burnin=5e3,no_chains=1
     binary_y[y==unique(as.factor(y))[2]] <- 1
     y <- binary_y
   }
-  if(data=='Chowdary'){
+  if(dataset=='Chowdary'){
     data('chowdary', package = 'datamicroarray')
     X <- chowdary$x
     rownames(X) <- NULL
@@ -115,7 +115,7 @@ comparison_dataset_sims <- function(data,chain_length=1e4,burnin=5e3,no_chains=1
     binary_y[y==unique(as.factor(y))[2]] <- 1
     y <- binary_y
   }
-  if(data=='Gordon'){
+  if(dataset=='Gordon'){
     data('gordon', package = 'datamicroarray')
     X <- gordon$x
     rownames(X) <- NULL
@@ -144,89 +144,188 @@ comparison_dataset_sims <- function(data,chain_length=1e4,burnin=5e3,no_chains=1
   
   foreach(i = c(1:no_chains), .combine = rbind)%dopar%{
     output <- data.frame()
-    if('ScalableSpikeSlab' %in% algos){
+    if('S3_linear' %in% algos){
       ###### Scalable spike and slab
       sss_time_taken <-
         system.time(
           sss_chain <- 
-            spike_slab_mcmc(chain_length=chain_length, X=X, y=y,
-                            tau0=params$tau0, tau1=params$tau1, q=params$q, 
-                            a0=params$a0,b0=params$b0, rinit=NULL, verbose=TRUE,
-                            burnin=burnin, store=FALSE, Xt=Xt, XXt=XXt, 
-                            tau0_inverse=tau0_inverse, tau1_inverse=tau1_inverse)
+            spike_slab_linear(chain_length=chain_length, X=X, y=y,
+                              tau0=params$tau0, tau1=params$tau1, q=params$q, 
+                              a0=params$a0,b0=params$b0, rinit=NULL, verbose=TRUE,
+                              burnin=burnin, store=FALSE, Xt=Xt, XXt=XXt,
+                              tau0_inverse=tau0_inverse, tau1_inverse=tau1_inverse)
+        )
+      output <- 
+        rbind(output, 
+              data.frame(algo='S3_linear',
+                         time=as.double(sss_time_taken[1])/chain_length, 
+                         z_ergodic_avg=I(list(as.vector(sss_chain$z_ergodic_avg))),
+                         dataset=dataset, n=n, p=p, iteration=i))
+    }
+    if('S3_logistic' %in% algos){
+      ###### Scalable spike and slab
+      sss_time_taken <-
+        system.time(
+          sss_chain <- 
+            spike_slab_logistic(chain_length=chain_length, X=X, y=y,
+                                tau0=params$tau0, tau1=params$tau1, q=params$q, 
+                                rinit=NULL, verbose=TRUE,
+                                burnin=burnin, store=FALSE, Xt=Xt, XXt=XXt)
           )
       output <- 
         rbind(output, 
-              data.frame(algo='ScalableSpikeSlab', time=as.double(sss_time_taken[1])/chain_length, 
+              data.frame(algo='S3_logistic',
+                         time=as.double(sss_time_taken[1])/chain_length, 
                          z_ergodic_avg=I(list(as.vector(sss_chain$z_ergodic_avg))),
-                         dataset=data, n=n, p=p, iteration=i))
+                         dataset=dataset, n=n, p=p, iteration=i))
     }
-    
-    if('Sota' %in% algos){
+    if('S3_probit' %in% algos){
+      ###### Scalable spike and slab
+      sss_time_taken <-
+        system.time(
+          sss_chain <- 
+            spike_slab_probit(chain_length=chain_length, X=X, y=y,
+                              tau0=params$tau0, tau1=params$tau1, q=params$q, 
+                              rinit=NULL, verbose=TRUE,
+                              burnin=burnin, store=FALSE, Xt=Xt, XXt=XXt,
+                              tau0_inverse=tau0_inverse, tau1_inverse=tau1_inverse)
+        )
+      output <- 
+        rbind(output, 
+              data.frame(algo='S3_probit',
+                         time=as.double(sss_time_taken[1])/chain_length, 
+                         z_ergodic_avg=I(list(as.vector(sss_chain$z_ergodic_avg))),
+                         dataset=dataset, n=n, p=p, iteration=i))
+    }
+    if('SOTA_logistic' %in% algos){
+      ###### Scalable spike and slab
       sota_time_taken <-
         system.time(
           sota_chain <- 
-            sota_spike_slab_mcmc(chain_length=chain_length, X=X,Xt=Xt,y=y,
-                                 tau0=params$tau0, tau1=params$tau1, q=params$q, 
-                                 a0=params$a0,b0=params$b0, rinit=NULL, verbose=TRUE,
-                                 burnin=burnin, store=FALSE))
-      
+            sota_spike_slab_logistic(chain_length=chain_length, X=X, y=y,
+                                     tau0=params$tau0, tau1=params$tau1, q=params$q, 
+                                     rinit=NULL, verbose=TRUE,
+                                     burnin=burnin, store=FALSE, Xt=Xt, XXt=XXt)
+        )
       output <- 
         rbind(output, 
-              data.frame(algo='Sota', time=as.double(sota_time_taken[1])/chain_length, 
+              data.frame(algo='SOTA_logistic',
+                         time=as.double(sota_time_taken[1])/chain_length, 
                          z_ergodic_avg=I(list(as.vector(sota_chain$z_ergodic_avg))),
-                         dataset=data, n=n, p=p, iteration=i))
-  }
-    print(c(data,i))
+                         dataset=dataset, n=n, p=p, iteration=i))
+    }
+    
+    if('SOTA_probit' %in% algos){
+      ###### Scalable spike and slab
+      sota_time_taken <-
+        system.time(
+          sota_chain <- 
+            sota_spike_slab_probit(chain_length=chain_length, X=X, y=y,
+                                   tau0=params$tau0, tau1=params$tau1, q=params$q, 
+                                   rinit=NULL, verbose=TRUE,
+                                   burnin=burnin, store=FALSE, Xt=Xt)
+        )
+      output <- 
+        rbind(output, 
+              data.frame(algo='SOTA_probit',
+                         time=as.double(sota_time_taken[1])/chain_length, 
+                         z_ergodic_avg=I(list(as.vector(sota_chain$z_ergodic_avg))),
+                         dataset=dataset, n=n, p=p, iteration=i))
+    }
+    if('SOTA_linear' %in% algos){
+      ###### Scalable spike and slab
+      sss_time_taken <-
+        system.time(
+          sss_chain <- 
+            sota_spike_slab_linear(chain_length=chain_length, X=X, y=y,
+                                   tau0=params$tau0, tau1=params$tau1, q=params$q, 
+                                   a0=params$a0,b0=params$b0, rinit=NULL, verbose=TRUE,
+                                   burnin=burnin, store=FALSE, Xt=Xt)
+        )
+      output <- 
+        rbind(output, 
+              data.frame(algo='SOTA_linear',
+                         time=as.double(sss_time_taken[1])/chain_length, 
+                         z_ergodic_avg=I(list(as.vector(sss_chain$z_ergodic_avg))),
+                         dataset=dataset, n=n, p=p, iteration=i))
+    }
+    print(c(dataset,i))
     return(output)
     }
 }
 
+######################## Malware Dataset Simulations ###########################
+dataset <- 'Malware'
+no_chains <- 10
+sss_chain_length <- 1e4
+sss_burnin <- 1e3
+sss_output <- 
+  comparison_dataset_sims(dataset,chain_length=sss_chain_length,burnin=sss_burnin,
+                          no_chains=no_chains, 
+                          algos=c('S3_logistic','S3_probit'))
 
-############################### Malware Dataset Simulations ###########################
-data <- 'Malware'
-no_chains <- 20
-chain_length <- 1e4
-burnin <- 5e3
-# Algos for comparison
-algos <- c('ScalableSpikeSlab','Sota')
+sota_chain_length <- 1e3
+sota_burnin <- 1e2
+sota_output <- 
+  comparison_dataset_sims(dataset,chain_length=sota_chain_length,burnin=sota_burnin,
+                          no_chains=no_chains, 
+                          algos=c('SOTA_logistic','SOTA_probit'))
 
-sss_sota_comparison <- 
-  comparison_dataset_sims(data,chain_length=chain_length,burnin=burnin,
-                          no_chains=no_chains, algos=c('ScalableSpikeSlab', 'Sota'))
+sss_sota_comparison <- rbind(sss_output, sota_output)
+
 sss_sota_comparison_df <- 
   sss_sota_comparison %>% 
   group_by(algo) %>% 
   select(time, z_ergodic_avg, n, p, iteration) %>%
   summarise(time_mean = mean(time), time_sd = sd(time),
             z_avg=I(list(colMeans(do.call(rbind, z_ergodic_avg)))),
-            data,n=n, p=p)
+            dataset,n=n, p=p)
 
-filename1 <- paste("/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/dataset_simulations/",data,'_sims.RData',sep = '')
+filename1 <- paste("/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/dataset_simulations/",dataset,'_sims.RData',sep = '')
 # save(file = filename1, sss_sota_comparison_df)
 
 ############### Plot of runtime comparison of different datasets ###############
-datasets_list <- c('Malware','Lymph','PCR','Synthetic Logistic',"Maize",'Synthetic Linear','Borovecki','Chin','Chowdary','Gordon')
-sss_chain_length <- 1e3
-sota_chain_length <- 1e2
-no_chains = 1
-time_comparison_output <- foreach(data = datasets_list, .combine = rbind)%dopar%{
-  sss_output <- comparison_dataset_sims(data,chain_length=sss_chain_length,
-                                        burnin=0, no_chains=no_chains, algos=c('ScalableSpikeSlab'))
-  sota_output <- comparison_dataset_sims(data,chain_length=sota_chain_length,
-                                         burnin=0, no_chains=no_chains, algos=c('Sota'))
+datasets_list_cont <- c('PCR',"Maize",'Synthetic_Continuous')
+datasets_list_binary <- c('Malware','Lymph','Synthetic_Binary','Borovecki','Chin','Chowdary','Gordon')
+sss_chain_length <- 1e2
+sota_chain_length <- 1e1
+no_chains <- 5
+
+time_comparison_output_linear <- foreach(dataset = datasets_list_cont, .combine = rbind)%dopar%{
+  sss_output <- 
+    comparison_dataset_sims(dataset,chain_length=sss_chain_length,
+                            burnin=0, no_chains=no_chains, 
+                            algos=c('S3_linear'))
+  sota_output <- 
+    comparison_dataset_sims(dataset,chain_length=sota_chain_length,
+                            burnin=0, no_chains=no_chains,
+                            algos=c('SOTA_linear'))
   sss_sota_comparison <- rbind(sss_output,sota_output)
   return(sss_sota_comparison)
 }
+time_comparison_output_probit <- foreach(dataset = datasets_list_binary, .combine = rbind)%dopar%{
+  sss_output <- 
+    comparison_dataset_sims(dataset,chain_length=sss_chain_length,
+                            burnin=0, no_chains=no_chains, 
+                            algos=c('S3_probit'))
+  sota_output <- 
+    comparison_dataset_sims(dataset,chain_length=sota_chain_length,
+                            burnin=0, no_chains=no_chains,
+                            algos=c('SOTA_probit'))
+  sss_sota_comparison <- rbind(sss_output,sota_output)
+  return(sss_sota_comparison)
+}
+time_comparison_output <- 
+  rbind(time_comparison_output_linear,time_comparison_output_probit)
 
 sss_sota_multi_dataset_time_comparison_df <- 
   time_comparison_output %>% 
   group_by(dataset, algo) %>% 
-  select(time, n, p, iteration) %>%
-  summarise(time_mean = mean(time), time_sd = sd(time),dataset,n=n, p=p) %>% 
+  select(time, n, p) %>%
+  summarise(time_mean = mean(time), time_sd = sd(time),n=mean(n), p=mean(p), no_chains=n()) %>% 
   arrange((n^2*p))
 
-filename2 <- paste("/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/dataset_simulations/multiple_dataset_sims.RData",sep = '')
+filename2 <- paste("/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/dataset_simulations/multiple_dataset_sims_new.RData",sep = '')
 # save(file = filename2, sss_sota_multi_dataset_time_comparison_df)
 
 

@@ -16,9 +16,7 @@ spike_slab_logistic(
   burnin = 0,
   store = TRUE,
   Xt = NULL,
-  XXt = NULL,
-  tau0_inverse = NULL,
-  tau1_inverse = NULL
+  XXt = NULL
 )
 }
 \arguments{

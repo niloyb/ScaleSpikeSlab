@@ -9,9 +9,9 @@ output:
 
 
 
-# ScaleSpikeSlab (S^3)
+# ScaleSpikeSlab ($S^3$)
 
-This package contains algorithms for *Scalable Spike-and-Slab* (S^3),
+This package contains algorithms for *Scalable Spike-and-Slab* ($S^3$),
 a scalable Gibbs sampling implementation for high-dimensional Bayesian 
 regression with the continuous spike-and-slab prior.
 
@@ -35,7 +35,7 @@ install.packages(c("doParallel", "doRNG", "foreach", "dplyr", "tidyr",
                    "ggplot2", "latex2exp", "reshape2", "ggpubr"))
 ```
 
-## A tutorial with GWAS data
+## A tutorial with Riboflavin GWAS data
 
 #### Import data and select hyperparameters. 
 
@@ -52,7 +52,7 @@ y <- riboflavin$y
 # Choose hyperparamters
 params <- spike_slab_params(n=nrow(X),p=ncol(X))
 ```
-#### Run MCMC with S^3
+#### Run MCMC with $S^3$
 
 
 ```r
@@ -63,7 +63,7 @@ library(foreach)
 no_chains <- 20
 sss_chain_z_output <- 
   foreach(i = c(1:no_chains), .combine=rbind)%dopar%{
-  sss_chain <- spike_slab_mcmc(chain_length=5e3,burnin=1e3,X=X,Xt=Xt,y=y,
+  sss_chain <- spike_slab_linear(chain_length=5e3,burnin=1e3,X=X,Xt=Xt,y=y,
                                tau0=params$tau0,tau1=params$tau1,q=params$q,
                                verbose=TRUE,store=FALSE)
   return(as.vector(sss_chain$z_ergodic_avg))

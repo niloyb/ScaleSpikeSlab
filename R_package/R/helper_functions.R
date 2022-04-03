@@ -31,6 +31,9 @@ synthetic_data <- function(n,p,s0,error_std,type='linear',scale=TRUE,signal='con
   } else if(type=='logistic'){
     true_aug_y = rlogis(n, location = X_truebeta)
     y <- ifelse(true_aug_y>0,1,0) # Logistic response
+  } else if(type=='probit'){
+    true_aug_y = rnorm(n, mean = X_truebeta)
+    y <- ifelse(true_aug_y>0,1,0) # Probit response
   }
   return(list(X=X, y=y, true_beta=true_beta))
 }
@@ -54,7 +57,6 @@ spike_slab_params <- function(n, p){
   }
   tau0 <- 1/sqrt(n)
   tau1 <- 1
-  # tau1 <- sqrt(max(1, p^(2.1)/(100*n))) # Alternative choice for tau1
   a0 <- 1
   b0 <- 1
   return(list(q=q, tau0=tau0, tau1=tau1, a0=a0, b0=b0))
