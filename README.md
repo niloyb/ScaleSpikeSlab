@@ -14,4 +14,4 @@ It is based on the article "Scalable Spike-and-Slab", by Niloy Biswas, Lester Ma
 
 The folder `R_package` contains the software package `ScaleSpikeSlab` in R.
 
-The folder `Python_package` contains the software package `ScaleSpikeSlab` in Python (forthcoming).
+The folder `Python_package` contains scripts for `ScaleSpikeSlab` in Python (package forthcoming).
