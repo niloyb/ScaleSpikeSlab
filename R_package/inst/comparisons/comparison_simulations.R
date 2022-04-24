@@ -30,9 +30,8 @@ comparison_vary_p_df2 <-
 comparison_vary_p_df <- rbind(comparison_vary_p_df1, comparison_vary_p_df2)
 # save(comparison_vary_p_df, file = '/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/comparisons/comparison_vary_p_df_new.Rdata')
 # load('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/comparisons/comparison_vary_p_df_new.Rdata')
-# comparison_vary_p_df1
+
 # Run-time comparison plots
-# comparison_vary_p_df_old
 time_df <- 
   comparison_vary_p_df %>% 
   group_by(algo,n,p) %>% 

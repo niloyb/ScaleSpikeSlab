@@ -37,12 +37,12 @@ comparison_dataset_sims <-
     rownames(X) <- NULL
   }
   if(dataset=='Maize'){
-    load('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/Harvard/PhD/Research/Pierre Jacob Lab/misc/high_dim_datasets/processed_maize_data/design_matrix_Xnew.RData')
-    load('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/Harvard/PhD/Research/Pierre Jacob Lab/misc/high_dim_datasets/processed_maize_data/response_ynew.RData')
+    load('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/Harvard/PhD/Research/high_dim_datasets/processed_maize_data/design_matrix_Xnew.RData')
+    load('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/Harvard/PhD/Research/high_dim_datasets/processed_maize_data/response_ynew.RData')
   }
   # Log reg datasets
   if(dataset=='Malware'){
-    malware_data <- read.csv('/Users/niloybiswas/Downloads/uci_malware_detection.csv', header = TRUE)
+    malware_data <- read.csv('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/Harvard/PhD/Research/high_dim_datasets/uci_malware/uci_malware_detection.csv', header = TRUE)
     y <- as.matrix(rep(0, nrow(malware_data)))
     y[malware_data[,1]=='malicious',] <- 1
     X <- as.matrix(malware_data[,-1])
@@ -50,19 +50,19 @@ comparison_dataset_sims <-
     colnames(X) <- NULL
   }
   if(dataset=='Lymph'){
-    lymph_data <- read.table('/Users/niloybiswas/Dropbox/Apps/Overleaf/scalable_spike_slab/datasets/lymph.dat', header = FALSE)
+    lymph_data <- read.table('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/Harvard/PhD/Research/high_dim_datasets/lymph_data/lymph.dat', header = FALSE)
     y <- lymph_data[,1]
     X <- lymph_data[,-1]
     colnames(X) <- NULL
     rownames(X) <- NULL
   }
   if(dataset=='PCR'){
-    pcr_data <- read.csv('/Users/niloybiswas/Dropbox/Apps/Overleaf/couplings/code/paper_examples/skinny_gibbs/pcr.csv', header = FALSE)
+    pcr_data <- read.csv('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/Harvard/PhD/Research/high_dim_datasets/pcr/pcr.csv', header = FALSE)
     # dim(pcr_data)
     X <- t(pcr_data[,-1])
     rownames(X) <- NULL
     colnames(X) <- NULL
-    y <- read.delim('/Users/niloybiswas/Dropbox/Apps/Overleaf/couplings/code/paper_examples/skinny_gibbs/GSE3330_B6BTBRlivergenotype60mice.txt', header = TRUE)
+    y <- read.delim('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/Harvard/PhD/Research/high_dim_datasets/pcr/GSE3330_B6BTBRlivergenotype60mice.txt', header = TRUE)
     y <- y$X.GPAT[(2+1):(2+60)]
     # Creating binary response from continuous GPAT (if want to do logistic)
     # y <- 1*(y<quantile(y,0.4))

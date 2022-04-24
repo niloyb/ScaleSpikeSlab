@@ -339,10 +339,10 @@ spike_slab_probit <-
     if(is.null(rinit)){
       # Initializing from the prior
       z <- rbinom(p,1,q)
-      nu <- 7.3
-      w2 <- (pi^2)*(nu-2)/(3*nu)
-      a0 <- nu
-      b0 <- w2*nu
+      # nu <- 7.3
+      # w2 <- (pi^2)*(nu-2)/(3*nu)
+      # a0 <- nu
+      # b0 <- w2*nu
       beta <- rnorm(p)
       beta[z==0] <- beta[z==0]*(tau0)
       beta[z==1] <- beta[z==1]*(tau1)
@@ -470,14 +470,12 @@ matrix_precompute_logistic <-
   } else if (no_slabs<=min(no_swaps, no_spikes)){
     Xt_update <- Xt[slab_indices,,drop=FALSE]
     update_part <- fcprd(Xt_update)*(tau1^2-tau0^2)
-    # return(diag(n)+tau0^2*XXt+update_part)
     new_matrix <- diagonal_inner_outer_prod(tau0^2*XXt+update_part,1/sqrt(sigma2tilde))
     diag(new_matrix) <- diag(new_matrix)+1
     return(new_matrix)
   } else{
     Xt_update <- Xt[!slab_indices,,drop=FALSE]
     update_part <- fcprd(Xt_update)*(tau0^2-tau1^2)
-    # return(diag(n)+tau1^2*XXt+update_part)
     new_matrix <- diagonal_inner_outer_prod(tau1^2*XXt+update_part,1/sqrt(sigma2tilde))
     diag(new_matrix) <- diag(new_matrix)+1
     return(new_matrix)
@@ -543,8 +541,6 @@ spike_slab_logistic_kernel <-
     
     z_new <- update_z(beta_new, sigma2=1, tau0, tau1, q, u_crn=random_samples$z_u)
     e_new <- update_e(beta_new, sigma2=sigma2tilde, y, X, u_crn=random_samples$e_u)
-    
-    # sigma2tilde_new <- rep(1,length(y)) 
     nu <- 7.3
     w2 <- (pi^2)*(nu-2)/(3*nu)
     a0 <- nu

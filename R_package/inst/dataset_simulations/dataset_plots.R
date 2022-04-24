@@ -136,27 +136,3 @@ plot_name2 <- paste("/Users/niloybiswas/Dropbox/Apps/Overleaf/scalable_spike_sla
 # ggsave(filename = plot_name2, plot = time_comparison, width = 5, height = 4)
 
 
-# # Ratio of times plot
-# S3_times <- sss_sota_multi_dataset_time_comparison_df %>% filter(algo=='S3')
-# sota_times <- sss_sota_multi_dataset_time_comparison_df %>% filter(algo=='SOTA')
-# 
-# SOTA_S3_time_ratio <- 
-#   data.frame(dataset=S3_times$dataset,time_ratio=sota_times$time_mean/S3_times$time_mean,
-#              n=S3_times$n,p=S3_times$p)
-# 
-# # Ratio of times comparison
-# time_ratio_comparison <- 
-#   ggplot(SOTA_S3_time_ratio, aes(x=dataset, y=time_ratio)) + 
-#   geom_point(size=2, shape=4) + xlab(TeX('Datasets')) + 
-#   ylab(TeX('Sppedup factor of S^3 over SOTA')) +
-#   scale_x_discrete(limits=sss_sota_multi_dataset_time_comparison_df$dataset) +
-#   # scale_y_continuous(trans='log10') + 
-#   theme_classic(base_size = 10) +
-#   theme(legend.position = 'bottom', legend.key.width=unit(1,"cm"), legend.text=element_text(size=10)) +
-#   theme(axis.text.x = element_text(angle = 60, vjust = 1, hjust=1, size=10)) +
-#   guides(color=guide_legend(nrow=1,byrow=TRUE))
-# time_ratio_comparison
-# 
-# plot_name3 <- paste("/Users/niloybiswas/Dropbox/Apps/Overleaf/scalable_spike_slab/images/multi_dataset_time_plot_new.pdf",sep = '')
-# # ggsave(filename = plot_name3, plot = time_ratio_comparison, width = 5, height = 4)
-
