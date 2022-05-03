@@ -127,12 +127,11 @@ comparison_dataset_sims <-
     y <- binary_y
   }
   
+  # Removing co-variates which do not vary across observations
+  col_sds <- sapply(c(1:dim(X)[2]), function(i){sd(X[,i])})
+  X <- X[,col_sds!=0]
   n <- nrow(X)
   p <- ncol(X)
-  
-  # Removing co-variates which do not vary across observations
-  col_sds <- sapply(c(1:p), function(i){sd(X[,i])})
-  X <- X[,col_sds!=0]
   X <- as.matrix(scale(X),n,p)
   Xt <- t(X)
   XXt <- X%*%Xt

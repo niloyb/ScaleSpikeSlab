@@ -59,12 +59,12 @@ library(doParallel)
 registerDoParallel(cores = detectCores()-1)
 library(foreach)
 
-no_chains <- 20
+no_chains <- 50
 sss_chain_z_output <- 
   foreach(i = c(1:no_chains), .combine=rbind)%dopar%{
   sss_chain <- spike_slab_linear(chain_length=5e3,burnin=1e3,X=X,Xt=Xt,y=y,
                                tau0=params$tau0,tau1=params$tau1,q=params$q,
-                               verbose=TRUE,store=FALSE)
+                               verbose=FALSE,store=FALSE)
   return(as.vector(sss_chain$z_ergodic_avg))
 }
 
@@ -86,8 +86,8 @@ riboflavin_df <-
 
 ggplot(riboflavin_df, aes(x=xaxis, y=post_prob_mean)) + 
   geom_point(size=2) + 
-  geom_errorbar(aes(ymax=(post_prob_mean+post_prob_sd/sqrt(no_chains)), 
-                    ymin=(post_prob_mean-post_prob_sd/sqrt(no_chains))),
+  geom_errorbar(aes(ymax=(post_prob_mean+3*post_prob_sd/sqrt(no_chains)), 
+                    ymin=(post_prob_mean-3*post_prob_sd/sqrt(no_chains))),
                 position=position_dodge(.9)) +
   xlab('Riboflavin Covariates') + 
   ylab(TeX('Marginal posterior probabilities')) +
