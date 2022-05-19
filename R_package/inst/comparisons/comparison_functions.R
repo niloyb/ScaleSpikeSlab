@@ -1,12 +1,13 @@
 # Functions for comparison with alternatives
 library(ScaleSpikeSlab)
 library(doParallel)
-registerDoParallel(cores = detectCores()-1)
 library(foreach)
+no_cores <- detectCores()-1
+registerDoParallel(cores = no_cores)
 
 ############################ Skinny Gibbs functions ############################
 # # Installing Skinny Gibbs
-# install.packages("/Users/niloybiswas/Downloads/UASA_A_1482754_Supplement/Skinny Gibbs/skinnybasad_0.0.1.tar.gz", repos = NULL, type ="source")
+# install.packages("UASA_A_1482754_Supplement/Skinny Gibbs/skinnybasad_0.0.1.tar.gz", repos = NULL, type ="source")
 library(skinnybasad)
 # Editing the skinnybasad:::skinnybasad function for implementation
 # Added the line: PACKAGE = "skinnybasad"

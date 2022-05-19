@@ -11,6 +11,18 @@
 #' @param scale design matrix X has columns mean zero and standard deviation 1 (TRUE or FALSE)
 #' @param signal non-zero components of the true signal ('constant' or 'deacy')
 #' @return Design matrix, response and true signal vector for linear and logistic regression
+#' @examples 
+#' syn_data <- synthetic_data(n=100,p=200,s0=5,error_std=2)
+#' 
+#' # syn_data$X is an n by p design matrix
+#' dim(syn_data$X)
+#' 
+#' # syn_data$y is a length n response vector
+#' length(syn_data$y) 
+#' 
+#' # syn_data$true_beta is a length n response vector with only the first s0 entries non-zero
+#' all(syn_data$true_beta[1:5]!=0)
+#' all(syn_data$true_beta[-c(1:5)]==0)
 #' @export
 synthetic_data <- function(n,p,s0,error_std,type='linear',scale=TRUE,signal='constant'){
   true_beta <- matrix(0,p,1)
@@ -43,6 +55,9 @@ synthetic_data <- function(n,p,s0,error_std,type='linear',scale=TRUE,signal='con
 #' @param n number of observations
 #' @param p number of covariates
 #' @return spike-and-slab hyperparameters q, tau0, tau1, a0, b0
+#' @examples 
+#' hyper_params <- spike_slab_params(n=100,p=200)
+#' print(hyper_params)
 #' @export
 spike_slab_params <- function(n, p){
   # Choice of q, tau0, tau1: following skinny gibbs paper

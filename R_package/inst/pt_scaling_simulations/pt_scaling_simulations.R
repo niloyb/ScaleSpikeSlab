@@ -1,9 +1,9 @@
 # Simulation study on synthetic datasets 
-rm(list=ls())
-
 library(ScaleSpikeSlab)
 library(doParallel)
-registerDoParallel(cores = detectCores()-1)
+no_cores <- 2
+# no_cores <- detectCores()-1
+registerDoParallel(cores = no_cores)
 library(foreach)
 
 library(dplyr)
@@ -64,7 +64,7 @@ vary_p_summary <-
   reshape2::melt(id=c('t','n', 'p')) %>%
   group_by(n,p,variable) %>% 
   summarise(mean=mean(value), sd=sd(value), length=n())
-# save(vary_p_summary, file = '/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/pt_scaling_simulations/vary_p_summary.Rdata')
+# save(vary_p_summary, file = 'inst/pt_scaling_simulations/vary_p_summary.Rdata')
 
 ## Fix p vary n ##
 n_p_error_s0_grid <- data.frame(n=seq(100,1000,100), p=1000, error_std=2, s0=10)
@@ -76,7 +76,7 @@ vary_n_summary <-
   reshape2::melt(id=c('t','n', 'p')) %>%
   group_by(n,p,variable) %>% 
   summarise(mean=mean(value), sd=sd(value), length=n())
-# save(vary_n_summary, file = '/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/pt_scaling_simulations/vary_n_summary.Rdata')
+# save(vary_n_summary, file = 'inst/pt_scaling_simulations/vary_n_summary.Rdata')
 
 ## Vary sparsity ##
 s0_seq <- c(1:20)
@@ -91,12 +91,12 @@ vary_s_summary <-
   reshape2::melt(id=c('t','n','p','s0')) %>%
   group_by(n,p,s0,variable) %>% 
   summarise(mean=mean(value), sd=sd(value), length=n())
-# save(vary_s_summary, file = '/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/pt_scaling_simulations/vary_s_summary.Rdata')
+# save(vary_s_summary, file = 'inst/pt_scaling_simulations/vary_s_summary.Rdata')
 
 
 ###### Plots ######
 
-# load('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/pt_scaling_simulations/vary_p_summary.Rdata')
+# load('inst/pt_scaling_simulations/vary_p_summary.Rdata')
 vary_p_plot <- 
   ggplot(vary_p_summary, aes(x=p, y=mean, linetype=variable)) + 
   geom_line(size=0.5) +
@@ -116,10 +116,10 @@ vary_p_plot <-
   # theme(legend.position = c(0.5, -0.1), legend.key.width=unit(1,"cm")) +
   guides(linetype=guide_legend(nrow=1,byrow=TRUE))
 vary_p_plot
-# ggsave(filename = "/Users/niloybiswas/Dropbox/Apps/Overleaf/fast_spike_slab/images/vary_p_plot.pdf", plot = vary_p_plot, width = 4, height = 2.5)
+# ggsave(filename = "inst/pt_scaling_simulations/vary_p_plot.pdf", plot = vary_p_plot, width = 4, height = 2.5)
 
 
-# load('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/pt_scaling_simulations/vary_n_summary.Rdata')
+# load('inst/pt_scaling_simulations/vary_n_summary.Rdata')
 vary_n_plot <- 
   ggplot(vary_n_summary, aes(x=n, y=mean, linetype=variable)) + 
   geom_line(size=0.5) +
@@ -139,10 +139,10 @@ vary_n_plot <-
   # theme(legend.position = c(0.5, -0.1), legend.key.width=unit(1,"cm")) +
   guides(linetype=guide_legend(nrow=1,byrow=TRUE))
 vary_n_plot
-# ggsave(filename = "/Users/niloybiswas/Dropbox/Apps/Overleaf/fast_spike_slab/images/vary_n_plot.pdf", plot = vary_n_plot, width = 4, height = 2.5)
+# ggsave(filename = "inst/pt_scaling_simulations/vary_n_plot.pdf", plot = vary_n_plot, width = 4, height = 2.5)
 
 
-# load('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/pt_scaling_simulations/vary_s_summary.Rdata')
+# load('inst/pt_scaling_simulations/vary_s_summary.Rdata')
 vary_s_plot <- 
   ggplot(vary_s_summary, aes(x=s0, y=mean, linetype=variable)) + 
   geom_line(size=0.5) +
@@ -162,14 +162,13 @@ vary_s_plot <-
   # theme(legend.position = c(0.5, -0.1), legend.key.width=unit(1,"cm")) +
   guides(linetype=guide_legend(nrow=1,byrow=TRUE))
 vary_s_plot
-# ggsave(filename = "/Users/niloybiswas/Dropbox/Apps/Overleaf/scalable_spike_slab/images/vary_s_plot.pdf", plot = vary_s_plot, width = 4, height = 2.5)
-
+# ggsave(filename = "inst/pt_scaling_simulations/vary_s_plot.pdf", plot = vary_s_plot, width = 4, height = 2.5)
 
 scaling_plot <- 
   ggarrange(vary_p_plot, vary_n_plot, vary_s_plot, common.legend = TRUE, 
             legend = "bottom", nrow=1)
 scaling_plot
-# ggsave(filename = "/Users/niloybiswas/Dropbox/Apps/Overleaf/scalable_spike_slab/images/scaling_plot_arxiv.pdf", plot = scaling_plot, width = 8, height = 4)
+# ggsave(filename = "inst/pt_scaling_simulations/scaling_plot_arxiv.pdf", plot = scaling_plot, width = 8, height = 4)
 
 scaling_plot2 <- 
   ggarrange(vary_p_plot + ylab(TeX('Average cost parameter $p_t$')), 
@@ -177,7 +176,7 @@ scaling_plot2 <-
             vary_s_plot + ylab(TeX('Average cost parameter $p_t$')), common.legend = TRUE, 
             legend = "bottom", nrow=3)
 scaling_plot2
-# ggsave(filename = "/Users/niloybiswas/Dropbox/Apps/Overleaf/fast_spike_slab/images/scaling_plot2.pdf", plot = scaling_plot2, width = 4, height = 6)
+# ggsave(filename = "inst/pt_scaling_simulations/scaling_plot2.pdf", plot = scaling_plot2, width = 4, height = 6)
 
 
 

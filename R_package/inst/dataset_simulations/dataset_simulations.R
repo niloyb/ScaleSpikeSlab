@@ -1,12 +1,12 @@
 # Logistic regression dataset example
-rm(list=ls())
 library(ScaleSpikeSlab)
-source('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/comparisons/comparison_functions.R')
-# source('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScalableSpikeSlab/R/helper_functions.R')
+source('inst/comparisons/comparison_functions.R')
 
 library(doParallel)
-registerDoParallel(cores = detectCores()-1)
 library(foreach)
+no_cores <- 2
+# no_cores <- detectCores()-1
+registerDoParallel(cores = no_cores)
 
 # Comparison of run-time for different datasets
 
@@ -280,7 +280,7 @@ sss_sota_comparison_df <-
             z_avg=I(list(colMeans(do.call(rbind, z_ergodic_avg)))),
             dataset,n=n, p=p)
 
-filename1 <- paste("/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/dataset_simulations/",dataset,'_sims.RData',sep = '')
+filename1 <- paste("inst/dataset_simulations/",dataset,'_sims.RData',sep = '')
 # save(file = filename1, sss_sota_comparison_df)
 
 ############### Plot of runtime comparison of different datasets ###############
@@ -324,7 +324,7 @@ sss_sota_multi_dataset_time_comparison_df <-
   summarise(time_mean = mean(time), time_sd = sd(time),n=mean(n), p=mean(p), no_chains=n()) %>% 
   arrange((n^2*p))
 
-filename2 <- paste("/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/dataset_simulations/multiple_dataset_sims_new.RData",sep = '')
+filename2 <- paste("inst/dataset_simulations/multiple_dataset_sims_new.RData",sep = '')
 # save(file = filename2, sss_sota_multi_dataset_time_comparison_df)
 
 

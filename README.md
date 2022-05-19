@@ -12,6 +12,6 @@ This package contains algorithms for *Scalable Spike-and-Slab* (S^3), a scalable
 
 It is based on the article "Scalable Spike-and-Slab" (https://arxiv.org/abs/2204.01668), by Niloy Biswas, Lester Mackey and Xiao-Li Meng. 
 
-The folder `R_package` contains the software package `ScaleSpikeSlab` in R.
+The folder `R_package` contains scripts and a tutorial for the software package `ScaleSpikeSlab` in R. It is available on CRAN (https://cran.r-project.org/web/packages/ScaleSpikeSlab/index.html).
 
-The folder `Python` contains scripts for `ScaleSpikeSlab` in Python (package forthcoming).
+The folder `Python` contains scripts and a tutorial for `ScaleSpikeSlab` in Python (package forthcoming).

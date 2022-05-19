@@ -1,7 +1,7 @@
 # Malware plot
 
 dataset <- 'malware'
-filename <- paste("/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/dataset_simulations/",dataset,'_sims.RData',sep = '')
+filename <- paste("inst/dataset_simulations/",dataset,'_sims.RData',sep = '')
 load(filename)
 xlab_title <- TeX('Malware Covariates')
 
@@ -98,7 +98,7 @@ plot_combined <-
             time_comparison, common.legend=TRUE, legend.grob=shared_legend, 
             legend = "bottom", nrow=1)
 plot_combined
-plot_name <- paste("/Users/niloybiswas/Dropbox/Apps/Overleaf/scalable_spike_slab/images/",dataset,'_plot_new.pdf',sep = '')
+plot_name <- paste("inst/dataset_simulations/",dataset,'_plot_new.pdf',sep = '')
 # ggsave(filename = plot_name, plot = plot_combined, width = 10, height = 4)
 
 
@@ -106,7 +106,7 @@ plot_name <- paste("/Users/niloybiswas/Dropbox/Apps/Overleaf/scalable_spike_slab
 
 ################################################################################
 # Multiple datasets plot
-filename2 <- paste("/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/dataset_simulations/multiple_dataset_sims_new.RData",sep = '')
+filename2 <- paste("inst/dataset_simulations/multiple_dataset_sims_new.RData",sep = '')
 load(filename2)
 
 sss_sota_multi_dataset_time_comparison_df <- 
@@ -132,7 +132,7 @@ time_comparison <-
   guides(color=guide_legend(nrow=1,byrow=TRUE))
 time_comparison
 
-plot_name2 <- paste("/Users/niloybiswas/Dropbox/Apps/Overleaf/scalable_spike_slab/images/multi_dataset_time_plot_new.pdf",sep = '')
+plot_name2 <- paste("inst/dataset_simulations/multi_dataset_time_plot_new.pdf",sep = '')
 # ggsave(filename = plot_name2, plot = time_comparison, width = 5, height = 4)
 
 

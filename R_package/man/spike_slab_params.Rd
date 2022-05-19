@@ -17,3 +17,7 @@ spike-and-slab hyperparameters q, tau0, tau1, a0, b0
 \description{
 Generates hyperparameters for spike-and-slab
 }
+\examples{
+hyper_params <- spike_slab_params(n=100,p=200)
+print(hyper_params)
+}

@@ -1,0 +1,15 @@
+Package: ScaleSpikeSlab
+Type: Package
+Title: Scalable Spike-and-Slab
+Version: 1.0
+Date: 2022-05-13
+Author: Niloy Biswas, Lester Mackey, Xiao-Li Meng
+Maintainer: Niloy Biswas <niloy_biswas@g.harvard.edu>
+Description: Scalable Spike-and-Slab is a scalable Gibbs sampling implementation for high dimensional Bayesian regression with the continuous spike-and-slab prior.
+License: GPL (>= 2)
+Imports: 
+    Rcpp,
+    stats,
+    TruncatedNormal
+LinkingTo: Rcpp, RcppEigen
+RoxygenNote: 7.1.2

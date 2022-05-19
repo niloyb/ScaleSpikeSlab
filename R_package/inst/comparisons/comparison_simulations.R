@@ -1,7 +1,11 @@
 # Synthetic dataset simulations
-rm(list=ls())
 library(ScaleSpikeSlab)
-source('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/comparisons/comparison_functions.R')
+
+source('inst/comparisons/comparison_functions.R')
+no_cores <- 2
+# no_cores <- detectCores()-1
+registerDoParallel(cores = no_cores)
+
 
 library(dplyr)
 library(ggplot2)
@@ -28,8 +32,8 @@ comparison_vary_p_df2 <-
   comparison_sims(time_comparison_list,chain_length=5,burnin=0, no_repeats=1,
                   algos=c('SOTA_logistic', 'SOTA_probit'),store=FALSE, verbose=TRUE)
 comparison_vary_p_df <- rbind(comparison_vary_p_df1, comparison_vary_p_df2)
-# save(comparison_vary_p_df, file = '/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/comparisons/comparison_vary_p_df_new.Rdata')
-# load('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/comparisons/comparison_vary_p_df_new.Rdata')
+# save(comparison_vary_p_df, file = 'inst/comparisons/comparison_vary_p_df_new.Rdata')
+# load('/inst/comparisons/comparison_vary_p_df_new.Rdata')
 
 # Run-time comparison plots
 time_df <- 
@@ -59,7 +63,7 @@ time_comparison <-
   theme(legend.position = 'bottom', legend.key.width=unit(1,"cm")) +
   guides(linetype=guide_legend(nrow=2,byrow=TRUE))
 time_comparison
-# ggsave(filename = "/Users/niloybiswas/Dropbox/Apps/Overleaf/scalable_spike_slab/images/time_comparison_new.pdf", plot = time_comparison, width = 7, height = 4)
+# ggsave(filename = "/inst/comparisons/time_comparison_new.pdf", plot = time_comparison, width = 7, height = 4)
 
 (time_df%>%filter(algo=='SKINNY'))$time/(time_df%>%filter(algo=='S3_logistic'))$time
 (time_df%>%filter(algo=='SOTA_logistic'))$time/(time_df%>%filter(algo=='S3_logistic'))$time
@@ -75,8 +79,8 @@ stat_comparison_vary_p_df <-
   comparison_sims(stat_comparison_list, chain_length=5e3, burnin=1e3, 
                   algos=c('S3_probit','S3_logistic','SKINNY'), 
                   no_repeats=10, signal = 'decay')
-# save(stat_comparison_vary_p_df, file = '/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/comparisons/stat_comparison_vary_p_df_new.Rdata')
-# load('/Users/niloybiswas/Google Drive/My Drive/Niloy_Files/github/ScaleSpikeSlab/R_package/inst/comparisons/stat_comparison_vary_p_df_new.Rdata')
+# save(stat_comparison_vary_p_df, file = 'inst/comparisons/stat_comparison_vary_p_df_new.Rdata')
+# load('inst/comparisons/stat_comparison_vary_p_df_new.Rdata')
 
 stat_performance_df <-
   stat_comparison_vary_p_df %>%
@@ -123,5 +127,5 @@ fdr_comparison
 tpr_fdr_comparison <- 
   ggarrange(tpr_comparison, fdr_comparison, common.legend = TRUE, legend = "bottom")
 tpr_fdr_comparison
-# ggsave(filename = "/Users/niloybiswas/Dropbox/Apps/Overleaf/scalable_spike_slab/images/tpr_fdr_comparison_new.pdf", plot = tpr_fdr_comparison, width = 7, height = 4)
+# ggsave(filename = "/inst/comparisons/tpr_fdr_comparison_new.pdf", plot = tpr_fdr_comparison, width = 7, height = 4)
 

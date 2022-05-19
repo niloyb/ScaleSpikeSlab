@@ -34,7 +34,21 @@ spike_slab_probit(
 
 \item{q}{prior hyperparameter (strictly between 0 and 1)}
 
-\item{X_transpose}{Pre-calculated transpose of X}
+\item{rinit}{initial distribution of Markov chain (default samples from the prior)}
+
+\item{verbose}{print iteration of the Markov chain (boolean)}
+
+\item{burnin}{chain burnin (non-negative integer)}
+
+\item{store}{store chain trajectory (boolean)}
+
+\item{Xt}{Pre-calculated transpose of X}
+
+\item{XXt}{Pre-calculated matrix X*transpose(X) (n by n matrix)}
+
+\item{tau0_inverse}{Pre-calculated matrix inverse(I + tau0^2*XXt) (n by n matrix)}
+
+\item{tau1_inverse}{Pre-calculated matrix inverse(I + tau1^2*XXt) (n by n matrix)}
 }
 \value{
 Output from Markov chain targeting the posterior corresponding to
@@ -43,4 +57,21 @@ Bayesian logistic regression with spike and slab priors
 \description{
 Generates Markov chain targeting the posterior corresponding to
 Bayesian probit regression with spike and slab priors
+}
+\examples{
+# Synthetic dataset
+syn_data <- synthetic_data(n=100,p=200,s0=5,error_std=2,type='probit')
+X <- syn_data$X
+Xt <- t(X)
+y <- syn_data$y
+
+# Hyperparamters
+params <- spike_slab_params(n=nrow(X),p=ncol(X))
+
+# Run S^3
+sss_chain <- spike_slab_probit(chain_length=4e3,burnin=1e3,X=X,y=y,
+tau0=params$tau0,tau1=params$tau1,q=params$q,verbose=FALSE,store=FALSE)
+
+# Use posterior probabilities for variable selection
+sss_chain$z_ergodic_avg[1:10]
 }

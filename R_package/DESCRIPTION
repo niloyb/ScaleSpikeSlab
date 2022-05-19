@@ -1,13 +1,25 @@
 Package: ScaleSpikeSlab
 Type: Package
-Title: What the Package Does in One 'Title Case' Line
+Title: Scalable Spike-and-Slab
 Version: 1.0
-Date: 2022-01-31
-Author: Your Name
-Maintainer: Your Name <your@email.com>
-Description: One paragraph description of what the package does as one or more full sentences.
+Date: 2022-05-13
+Authors@R: 
+  c(person(given = "Niloy",
+           family = "Biswas",
+           role = c("aut", "cre"),
+           email = "niloy_biswas@g.harvard.edu",
+           comment = c(ORCID = "0000-0001-9081-5702")),
+    person(given = "Lester",
+           family = "Mackey",
+           role = "aut"),
+    person(given = "Xiao-Li",
+           family = "Meng",
+           role = "aut"))
+Description: A scalable Gibbs sampling implementation for high dimensional Bayesian regression with the continuous spike-and-slab prior. Niloy Biswas, Lester Mackey and Xiao-Li Meng, "Scalable Spike-and-Slab" (2022) <arXiv:2204.01668>.
 License: GPL (>= 2)
 Imports: 
-    Rcpp
+    Rcpp,
+    stats,
+    TruncatedNormal
 LinkingTo: Rcpp, RcppEigen
 RoxygenNote: 7.1.2

@@ -25,13 +25,18 @@ The package can be installed from R via:
 
 
 ```r
+#### Installation from github
 # install.packages("devtools")
-devtools::install_github("niloyb/ScaleSpikeSlab/R_package")
+# devtools::install_github("niloyb/ScaleSpikeSlab/R_package")
+
+#### Installation from CRAN
+install.packages('ScaleSpikeSlab')
 
 # Install dependencies Rcpp, RcppEigen
 install.packages(c("Rcpp", "RcppEigen"))
+
 # Install additional packages to help with parallel computation and plotting
-install.packages(c("doParallel", "doRNG", "foreach", "dplyr", "tidyr", 
+install.packages(c("doParallel", "doRNG", "foreach", "dplyr", "tidyr",
                    "ggplot2", "latex2exp", "reshape2", "ggpubr"))
 ```
 

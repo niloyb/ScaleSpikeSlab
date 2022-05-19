@@ -35,3 +35,16 @@ Design matrix, response and true signal vector for linear and logistic regressio
 \description{
 Generates synthetic linear and logistic regression data
 }
+\examples{
+syn_data <- synthetic_data(n=100,p=200,s0=5,error_std=2)
+
+# syn_data$X is an n by p design matrix
+dim(syn_data$X)
+
+# syn_data$y is a length n response vector
+length(syn_data$y) 
+
+# syn_data$true_beta is a length n response vector with only the first s0 entries non-zero
+all(syn_data$true_beta[1:5]!=0)
+all(syn_data$true_beta[-c(1:5)]==0)
+}

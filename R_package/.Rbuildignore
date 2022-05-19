@@ -1,2 +1,8 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
+inst/.*./*.RData
+README.Rmd
+README.html
+README_files/.*
+README_cache/.*
+LICENSE
