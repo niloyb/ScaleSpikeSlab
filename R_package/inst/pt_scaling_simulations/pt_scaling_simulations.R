@@ -95,7 +95,6 @@ vary_s_summary <-
 
 
 ###### Plots ######
-
 # load('inst/pt_scaling_simulations/vary_p_summary.Rdata')
 vary_p_plot <- 
   ggplot(vary_p_summary, aes(x=p, y=mean, linetype=variable)) + 
@@ -170,12 +169,21 @@ scaling_plot <-
 scaling_plot
 # ggsave(filename = "inst/pt_scaling_simulations/scaling_plot_arxiv.pdf", plot = scaling_plot, width = 8, height = 4)
 
-scaling_plot2 <- 
-  ggarrange(vary_p_plot + ylab(TeX('Average cost parameter $p_t$')), 
-            vary_n_plot + ylab(TeX('Average cost parameter $p_t$')), 
-            vary_s_plot + ylab(TeX('Average cost parameter $p_t$')), common.legend = TRUE, 
-            legend = "bottom", nrow=3)
-scaling_plot2
+
+# scaling_plot <-
+#   ggarrange(vary_p_plot + theme_classic(base_size = 16) + theme(legend.position = 'bottom', legend.key.width=unit(1,"cm"), legend.text = element_text(size=16)),
+#             vary_n_plot + theme_classic(base_size = 16) + theme(legend.position = 'bottom', legend.key.width=unit(1,"cm"), legend.text = element_text(size=16)),
+#             vary_s_plot + theme_classic(base_size = 16) + theme(legend.position = 'bottom', legend.key.width=unit(1,"cm"), legend.text = element_text(size=16)),
+#             common.legend = TRUE,
+#             legend = "bottom", nrow=1)
+# ggsave(filename = "inst/pt_scaling_simulations/scaling_plot_icml.pdf", plot = scaling_plot, width = 8, height = 5)
+
+# scaling_plot2 <- 
+#   ggarrange(vary_p_plot + ylab(TeX('Average cost parameter $p_t$')), 
+#             vary_n_plot + ylab(TeX('Average cost parameter $p_t$')), 
+#             vary_s_plot + ylab(TeX('Average cost parameter $p_t$')), common.legend = TRUE, 
+#             legend = "bottom", nrow=3)
+# scaling_plot2
 # ggsave(filename = "inst/pt_scaling_simulations/scaling_plot2.pdf", plot = scaling_plot2, width = 4, height = 6)
 
 

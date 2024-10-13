@@ -2,6 +2,7 @@
 library(ScaleSpikeSlab)
 library(doParallel)
 library(foreach)
+library(dplyr)
 no_cores <- detectCores()-1
 registerDoParallel(cores = no_cores)
 
@@ -266,7 +267,7 @@ sota_spike_slab_logistic <-
     p <- dim(X)[2]
     n <- length(y)
     if(is.null(Xt)){Xt <- t(X)}
-    if(is.null(XXt)){XXt <- fcprd(Xt)}
+    if(is.null(XXt)){XXt <- ScaleSpikeSlab:::fcprd(Xt)}
     
     if(is.null(rinit)){
       # Initializing from the prior
@@ -358,7 +359,7 @@ comparison_sims <- function(n_p_error_s0_list,chain_length=1e4,burnin=5e3,no_rep
       X <- matrix(scale(X), n, p)
       y <- logreg_sync_data$y
       Xt <- t(X)
-      XXt <- fcprd(Xt)
+      XXt <- ScaleSpikeSlab:::fcprd(Xt)
       signal_indices <- logreg_sync_data$true_beta!=0
       
       params <- ScaleSpikeSlab:::spike_slab_params(n, p)
@@ -529,5 +530,154 @@ comparison_sims <- function(n_p_error_s0_list,chain_length=1e4,burnin=5e3,no_rep
       return(output)
     }
 }
+
+
+#################### SOTA, Skinny Gibbs and S^3 comparison ####################
+comparison_sims_over_time <- 
+  function(X,y,true_beta,chain_length=1e4,burnin=1e3,
+           algos=c('S3_logistic','S3_probit','SOTA_logistic','SOTA_probit','SKINNY'),
+           store=TRUE, verbose=TRUE, no_chains=1, sota_chain_length=10, skinny_chain_lengths=NA){
+  if(is.na(sota_chain_length)){sota_chain_length <- chain_length}
+  if(any(is.na(skinny_chain_lengths))){skinny_chain_lengths <- seq(burnin,chain_length,burnin)}
+  
+  n <- dim(X)[1]
+  p <- dim(X)[2]
+  Xt <- t(X)
+  XXt <- ScaleSpikeSlab:::fcprd(Xt)
+  signal_indices <- true_beta!=0
+  s0 <- sum(signal_indices)
+
+  params <- ScaleSpikeSlab:::spike_slab_params(n, p)
+  # Choosing same hyperpamaters as skinnybasad package for SkinnyGibbs
+  params$tau0 <- 1/sqrt(n)
+  params$tau1 <- sqrt(max(0.01 * p^{2 + 0.1}/n, 1))
+  tau0_inverse <- chol2inv(chol(diag(n)+params$tau0^2*XXt))
+  tau1_inverse <- chol2inv(chol(diag(n)+params$tau1^2*XXt))
+  
+  output <- data.frame()
+  
+  if('S3_logistic' %in% algos){
+    ###### Scalable spike and slab
+    sss_logistic <-
+      foreach(chain = c(1:no_chains), .combine = rbind)%dopar%{
+      sss_logistic_time_taken <-
+        system.time(
+          sss_logistic_chain <- 
+            spike_slab_logistic(chain_length=chain_length,X=X,y=y,
+                                tau0=params$tau0, tau1=params$tau1, q=params$q, 
+                                rinit=NULL,verbose=verbose,store=store,
+                                Xt=Xt,XXt=XXt))
+      
+      sss_logistic_z_over_time <- apply(sss_logistic_chain$z[c(burnin:chain_length),,drop=FALSE],2,cummean)
+      sss_logistic_tpr_over_time <- rowMeans(sss_logistic_z_over_time[,signal_indices,drop=FALSE]>0.5)
+      sss_logistic_fdr_over_time <- rowMeans(sss_logistic_z_over_time[,!signal_indices,drop=FALSE]>0.5)
+      sss_logistic_beta_over_time <- apply(sss_logistic_chain$beta[c(burnin:chain_length),],2,cummean)
+      sss_logistic_mse_over_time <- rowMeans(sweep(sss_logistic_beta_over_time,2,logreg_sync_data$true_beta)^2)
+      
+      logistic_df <- 
+        data.frame(algo='S3_logistic', 
+                   time_per_iteration=as.double(sss_logistic_time_taken[1])/chain_length,
+                   iteration=c(burnin:chain_length), 
+                   tpr=sss_logistic_tpr_over_time, fdr=sss_logistic_fdr_over_time, 
+                   mse=sss_logistic_mse_over_time,n=n, p=p,s0=s0,chain=chain)
+      
+      if('SOTA_logistic' %in% algos){
+        sota_logistic_time_taken <-
+          system.time(
+            sota_logistic_chain <- 
+              sota_spike_slab_logistic(chain_length=sota_chain_length, X=X,Xt=Xt,y=y,
+                                       tau0=params$tau0, tau1=params$tau1, q=params$q, 
+                                       rinit=NULL, verbose=verbose,store=store))
+        sota_logistic_df <- 
+          data.frame(algo='SOTA_logistic',
+                     time_per_iteration=as.double(sota_logistic_time_taken[1])/sota_chain_length,
+                     iteration=c(burnin:chain_length),
+                     tpr=sss_logistic_tpr_over_time, fdr=sss_logistic_fdr_over_time, 
+                     mse=sss_logistic_mse_over_time,n=n, p=p,s0=s0,chain=chain)
+        logistic_df <- rbind(logistic_df,sota_logistic_df)
+      }
+      return(logistic_df)
+    }
+    output <- rbind(output, sss_logistic)
+  }
+  
+  if('S3_probit' %in% algos){
+    ###### Scalable spike and slab
+    sss_probit <-
+      foreach(chain = c(1:no_chains), .combine = rbind)%dopar%{
+        sss_probit_time_taken <-
+          system.time(
+            sss_probit_chain <- 
+              spike_slab_probit(chain_length=chain_length,X=X,y=y,
+                                tau0=params$tau0, tau1=params$tau1, q=params$q, 
+                                rinit=NULL,verbose=verbose,store=store,
+                                Xt=Xt,XXt=XXt))
+        sss_probit_z_over_time <- apply(sss_probit_chain$z[c(burnin:chain_length),,drop=FALSE],2,cummean)
+        sss_probit_tpr_over_time <- rowMeans(sss_probit_z_over_time[,signal_indices,drop=FALSE]>0.5)
+        sss_probit_fdr_over_time <- rowMeans(sss_probit_z_over_time[,!signal_indices,drop=FALSE]>0.5)
+        sss_probit_beta_over_time <- apply(sss_probit_chain$beta[c(burnin:chain_length),],2,cummean)
+        sss_probit_mse_over_time <- rowMeans(sweep(sss_probit_beta_over_time,2,logreg_sync_data$true_beta)^2)
+        
+        probit_df <- 
+          data.frame(algo='S3_probit',
+                     time_per_iteration=as.double(sss_probit_time_taken[1])/chain_length,
+                     iteration=c(burnin:chain_length),
+                     tpr=sss_probit_tpr_over_time, fdr=sss_probit_fdr_over_time, 
+                     mse=sss_probit_mse_over_time,n=n, p=p,s0=s0,chain=chain)
+        
+        if('SOTA_probit' %in% algos){
+          sota_probit_time_taken <-
+            system.time(
+              sota_probit_chain <- 
+                sota_spike_slab_probit(chain_length=sota_chain_length,X=X,Xt=Xt,y=y,
+                                       tau0=params$tau0, tau1=params$tau1, q=params$q, 
+                                       rinit=NULL, verbose=verbose,store=store))
+          
+          sota_probit_df <- 
+            data.frame(algo='SOTA_probit',
+                       time_per_iteration=as.double(sota_probit_time_taken[1])/sota_chain_length,
+                       iteration=c(burnin:chain_length),
+                       tpr=sss_probit_tpr_over_time, fdr=sss_probit_fdr_over_time, 
+                       mse=sss_probit_mse_over_time,n=n, p=p,s0=s0,chain=chain)
+          probit_df <- rbind(probit_df,sota_probit_df)
+        }
+        return(probit_df)
+      }
+    output <- rbind(output, sss_probit)
+  }
+  
+  if('SKINNY' %in% algos){
+    # Initializing from the prior
+    z <- rbinom(p,1,params$q)
+    sigma2 <- 1/rgamma(1,shape = (params$a0/2), rate = (params$b0/2))
+    beta <- rnorm(p)
+    beta[z==0] <- beta[z==0]*(params$tau0*sqrt(sigma2))
+    beta[z==1] <- beta[z==1]*(params$tau1*sqrt(sigma2))
+    
+    # Skinny Gibbs does not output full trajectories so we run multiple chains
+    skinny_stat_perform <-
+      foreach(chain = c(1:no_chains), .combine = rbind)%:%
+      foreach(c_length = skinny_chain_lengths, .combine = rbind)%dopar%{
+        skinnygibbs_time_taken <-
+        system.time(
+          skinny_chain <-
+            skinnybasad(X,y,params$q,beta,z,modif=1,nburn=(burnin-1),
+                        niter=(c_length-burnin+1),printitrsep=verbose))
+      
+      skinny_tpr <- mean(skinny_chain$marZ[signal_indices,drop=FALSE]>0.5)
+      skinny_fdr <- mean(skinny_chain$marZ[!signal_indices,drop=FALSE]>0.5)
+      
+      return(data.frame(algo='SKINNY',
+                 time_per_iteration=as.double(skinnygibbs_time_taken[1])/chain_length,
+                 iteration=c_length,
+                 tpr=skinny_tpr, fdr=skinny_fdr, 
+                 mse=NA,n=n, p=p,s0=s0,chain=chain))
+    }
+    
+    output <- rbind(output, skinny_stat_perform)
+  }
+  return(output)
+}
+
 
 

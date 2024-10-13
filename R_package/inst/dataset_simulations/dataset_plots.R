@@ -106,7 +106,10 @@ plot_name <- paste("inst/dataset_simulations/",dataset,'_plot_new.pdf',sep = '')
 
 ################################################################################
 # Multiple datasets plot
-filename2 <- paste("inst/dataset_simulations/multiple_dataset_sims_new.RData",sep = '')
+# filename2 <- paste("inst/dataset_simulations/multiple_dataset_sims_new.RData",sep = '')
+# load(filename2)
+
+filename2 <- paste("inst/dataset_simulations/datasets_sims.RData",sep = '')
 load(filename2)
 
 sss_sota_multi_dataset_time_comparison_df <- 
@@ -134,5 +137,7 @@ time_comparison
 
 plot_name2 <- paste("inst/dataset_simulations/multi_dataset_time_plot_new.pdf",sep = '')
 # ggsave(filename = plot_name2, plot = time_comparison, width = 5, height = 4)
+
+
 
 
